@@ -1,0 +1,33 @@
+---
+globs: "**/*"
+alwaysApply: false
+---
+# Project Architecture
+
+## Overview
+The project enables Retrieval-Augmented Generation using a web client, an API server, and supporting services.
+
+## Components
+- **Next.js Client**
+  - Provides a ChatGPT-style interface for user prompts.
+  - Follows the guidelines in `next-dev-rules.mdc`.
+- **FastAPI Server**
+  - Receives prompts, orchestrates retrieval and generation, and exposes REST endpoints.
+  - Adheres to `python-api-dev-rules.mdc`.
+- **Qdrant Vector Store**
+  - Stores document embeddings for context retrieval.
+  - Runs in a dedicated Docker container.
+- **LM Studio Host**
+  - Serves language models that generate responses.
+- **PostgreSQL Database**
+  - Persists user credentials, chat history, and preferences.
+  - Follows the conventions in `sql-style-guide.mdc` and runs in Docker.
+
+## Data Flow
+1. The Next.js client sends a user prompt to the FastAPI server.
+2. The server queries Qdrant for relevant vectors and retrieves user data from PostgreSQL.
+3. The server constructs an augmented prompt and forwards it to the LM Studio host.
+4. The generated response is returned to the client and stored in PostgreSQL.
+
+## Deployment
+All services are containerized. Qdrant and PostgreSQL run in separate Docker containers, the FastAPI server connects to the LM Studio host, and the Next.js client interacts with the server over HTTP.
