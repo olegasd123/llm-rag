@@ -1,6 +1,5 @@
 ---
-globs: "**/*"
-alwaysApply: false
+alwaysApply: true
 ---
 # Project Architecture
 
