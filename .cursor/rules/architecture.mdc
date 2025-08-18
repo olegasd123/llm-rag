@@ -4,18 +4,19 @@ alwaysApply: true
 # Project Architecture
 
 ## Overview
-The project enables Retrieval-Augmented Generation using a web client, an API server, and supporting services.
+The project enables Retrieval-Augmented Generation using a Next.js web client, an ASP.NET Core MVC server, and supporting services.
 
 ## Components
 - **Next.js Client**
   - Provides a ChatGPT-style interface for user prompts.
   - Use Prisma ORM for PostgreSQL.
   - Follows the guidelines in `next-dev-rules.mdc`.
-- **FastAPI Server**
+- **ASP.NET Core MVC Server**
   - Receives prompts, orchestrates retrieval and generation, and exposes REST endpoints.
-  - Adheres to `python-api-dev-rules.mdc`.
+  - Implemented in C# using .NET 8 and follows standard ASP.NET Core conventions.
+  - Follows the guidelines in `net-dev-rules.mdc`.
 - **Message Broker**
-  - Dispatches tasks between the FastAPI server and background workers.
+  - Dispatches tasks between the ASP.NET Core MVC server and background workers.
   - Supports Redis or RabbitMQ backends running in their own containers.
 - **Background Worker Service**
   - Processes queued prompts asynchronously (e.g., with Celery or RQ).
@@ -38,7 +39,7 @@ The project enables Retrieval-Augmented Generation using a web client, an API se
   - Alerts on system health for proactive maintenance.
 
 ## Data Flow
-1. The Next.js client sends a user prompt to the FastAPI server.
+1. The Next.js client sends a user prompt to the ASP.NET Core MVC server.
 2. The server validates the user's JWT and places the prompt on the message broker queue.
 3. The server immediately returns a task identifier so the client can track status.
 4. A background worker retrieves the task, checking Redis for relevant vectors and user data.
@@ -51,8 +52,8 @@ All services are containerized. Qdrant, PostgreSQL, Redis, the message broker, a
 A Docker Compose configuration orchestrates these services for local development, while Kubernetes deployments enable scaling individual services in production through replicas and service discovery.
 Redis is configured with a persistent volume and environment variables for host and port.
 For task distribution, deploy a broker such as Redis or RabbitMQ and point worker containers to it via environment variables.
-The FastAPI server connects to the LM Studio host and enqueues jobs to the broker, while workers consume them.
-The FastAPI tier can be replicated behind a load balancer (e.g., Nginx, Traefik, or a cloud provider gateway) to evenly distribute API requests and increase availability.
+The ASP.NET Core MVC server connects to the LM Studio host and enqueues jobs to the broker, while workers consume them.
+The ASP.NET Core MVC tier can be replicated behind a load balancer (e.g., Nginx, Traefik, or a cloud provider gateway) to evenly distribute API requests and increase availability.
 The Next.js client interacts with the server over HTTP and can be horizontally scaled by running multiple stateless instances behind a CDN or load balancer.
 Sensitive data is encrypted at rest and in transit.
 
