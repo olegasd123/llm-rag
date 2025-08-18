@@ -31,6 +31,7 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
   - Runs in a dedicated Docker container.
 - **LM Studio Host**
   - Serves language models that generate responses.
+  - Clients connect using `LM_HOST_URL` (e.g., `http://lm-studio-host:8080`).
 - **PostgreSQL Database**
   - Persists user credentials, chat history, and preferences.
   - Follows the conventions in `sql-style-guide.mdc` and runs in Docker.
