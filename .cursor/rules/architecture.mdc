@@ -19,8 +19,8 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
   - Dispatches tasks between the ASP.NET Core MVC server and background workers.
   - Supports Redis or RabbitMQ backends running in their own containers.
 - **Background Worker Service**
-  - Processes queued prompts asynchronously (e.g., with Celery or RQ).
-  - Updates task status and persists results.
+  - Implemented in C# as a .NET background worker using Hangfire or a custom `IHostedService`.
+  - Consumes queued prompts from the message broker, updates task status, and persists results.
 - **Redis Cache**
   - Caches recent vector queries and user data to reduce database load.
   - Runs in a dedicated Docker container.
@@ -42,7 +42,7 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
 1. The Next.js client sends a user prompt to the ASP.NET Core MVC server.
 2. The server validates the user's JWT and places the prompt on the message broker queue.
 3. The server immediately returns a task identifier so the client can track status.
-4. A background worker retrieves the task, checking Redis for relevant vectors and user data.
+4. The .NET worker retrieves the task, checking Redis for relevant vectors and user data.
 5. On a cache miss, the worker queries Qdrant for vectors and PostgreSQL for user data.
 6. The worker constructs an augmented prompt and forwards it to the LM Studio host.
 7. The generated response is stored in PostgreSQL, cached in Redis, and later retrieved by the client using the task identifier.
@@ -51,7 +51,7 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
 All services are containerized. Qdrant, PostgreSQL, Redis, the message broker, and the background worker service run in separate Docker containers.
 A Docker Compose configuration orchestrates these services for local development, while Kubernetes deployments enable scaling individual services in production through replicas and service discovery.
 Redis is configured with a persistent volume and environment variables for host and port.
-For task distribution, deploy a broker such as Redis or RabbitMQ and point worker containers to it via environment variables.
+For task distribution, deploy a broker such as Redis or RabbitMQ and point the ASP.NET Core MVC server and .NET worker containers to it via environment variables.
 The ASP.NET Core MVC server connects to the LM Studio host and enqueues jobs to the broker, while workers consume them.
 The ASP.NET Core MVC tier can be replicated behind a load balancer (e.g., Nginx, Traefik, or a cloud provider gateway) to evenly distribute API requests and increase availability.
 The Next.js client interacts with the server over HTTP and can be horizontally scaled by running multiple stateless instances behind a CDN or load balancer.
