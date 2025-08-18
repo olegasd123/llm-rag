@@ -14,6 +14,12 @@ The project enables Retrieval-Augmented Generation using a web client, an API se
 - **FastAPI Server**
   - Receives prompts, orchestrates retrieval and generation, and exposes REST endpoints.
   - Adheres to `python-api-dev-rules.mdc`.
+- **Message Broker**
+  - Dispatches tasks between the FastAPI server and background workers.
+  - Supports Redis or RabbitMQ backends running in their own containers.
+- **Background Worker Service**
+  - Processes queued prompts asynchronously (e.g., with Celery or RQ).
+  - Updates task status and persists results.
 - **Redis Cache**
   - Caches recent vector queries and user data to reduce database load.
   - Runs in a dedicated Docker container.
@@ -30,11 +36,12 @@ The project enables Retrieval-Augmented Generation using a web client, an API se
 
 ## Data Flow
 1. The Next.js client sends a user prompt to the FastAPI server.
-2. The server validates the user's JWT before processing the prompt.
-3. The server checks Redis for relevant vectors and user data.
-4. On a cache miss, it queries Qdrant for vectors and PostgreSQL for user data.
-5. The server constructs an augmented prompt and forwards it to the LM Studio host.
-6. The generated response is returned to the client, stored in PostgreSQL, and cached in Redis.
+2. The server validates the user's JWT and places the prompt on the message broker queue.
+3. The server immediately returns a task identifier so the client can track status.
+4. A background worker retrieves the task, checking Redis for relevant vectors and user data.
+5. On a cache miss, the worker queries Qdrant for vectors and PostgreSQL for user data.
+6. The worker constructs an augmented prompt and forwards it to the LM Studio host.
+7. The generated response is stored in PostgreSQL, cached in Redis, and later retrieved by the client using the task identifier.
 
 ## Deployment
-All services are containerized. Qdrant and PostgreSQL, and Redis run in separate Docker containers; Redis is configured with a persistent volume and environment variables for host and port. The FastAPI server connects to the LM Studio host, and the Next.js client interacts with the server over HTTP. Sensitive data is encrypted at rest and in transit.
+All services are containerized. Qdrant, PostgreSQL, Redis, the message broker, and the background worker service run in separate Docker containers. Redis is configured with a persistent volume and environment variables for host and port. For task distribution, deploy a broker such as Redis or RabbitMQ and point worker containers to it via environment variables. The FastAPI server connects to the LM Studio host and enqueues jobs to the broker, while workers consume them. The Next.js client interacts with the server over HTTP. Sensitive data is encrypted at rest and in transit.
