@@ -25,13 +25,16 @@ The project enables Retrieval-Augmented Generation using a web client, an API se
 - **PostgreSQL Database**
   - Persists user credentials, chat history, and preferences.
   - Follows the conventions in `sql-style-guide.mdc` and runs in Docker.
+- **Authentication/Authorization Service**
+  - Issues and verifies JWTs to manage user identity and permissions.
 
 ## Data Flow
 1. The Next.js client sends a user prompt to the FastAPI server.
-2. The server checks Redis for relevant vectors and user data.
-3. On a cache miss, it queries Qdrant for vectors and PostgreSQL for user data.
-4. The server constructs an augmented prompt and forwards it to the LM Studio host.
-5. The generated response is returned to the client, stored in PostgreSQL, and cached in Redis.
+2. The server validates the user's JWT before processing the prompt.
+3. The server checks Redis for relevant vectors and user data.
+4. On a cache miss, it queries Qdrant for vectors and PostgreSQL for user data.
+5. The server constructs an augmented prompt and forwards it to the LM Studio host.
+6. The generated response is returned to the client, stored in PostgreSQL, and cached in Redis.
 
 ## Deployment
-All services are containerized. Qdrant, PostgreSQL, and Redis run in separate Docker containers; Redis is configured with a persistent volume and environment variables for host and port. The FastAPI server connects to the LM Studio host, and the Next.js client interacts with the server over HTTP.
+All services are containerized. Qdrant and PostgreSQL, and Redis run in separate Docker containers; Redis is configured with a persistent volume and environment variables for host and port. The FastAPI server connects to the LM Studio host, and the Next.js client interacts with the server over HTTP. Sensitive data is encrypted at rest and in transit.
