@@ -33,6 +33,9 @@ The project enables Retrieval-Augmented Generation using a web client, an API se
   - Follows the conventions in `sql-style-guide.mdc` and runs in Docker.
 - **Authentication/Authorization Service**
   - Issues and verifies JWTs to manage user identity and permissions.
+- **Monitoring Stack**
+  - Collects metrics and provides dashboards via Prometheus and Grafana.
+  - Alerts on system health for proactive maintenance.
 
 ## Data Flow
 1. The Next.js client sends a user prompt to the FastAPI server.
@@ -45,3 +48,5 @@ The project enables Retrieval-Augmented Generation using a web client, an API se
 
 ## Deployment
 All services are containerized. Qdrant, PostgreSQL, Redis, the message broker, and the background worker service run in separate Docker containers. Redis is configured with a persistent volume and environment variables for host and port. For task distribution, deploy a broker such as Redis or RabbitMQ and point worker containers to it via environment variables. The FastAPI server connects to the LM Studio host and enqueues jobs to the broker, while workers consume them. The Next.js client interacts with the server over HTTP. Sensitive data is encrypted at rest and in transit.
+
+Each service emits structured logs to a centralized aggregator and propagates trace IDs using OpenTelemetry. Metrics, logs, and traces flow into the monitoring stack for dashboards and alerts, ensuring insight into overall system health.
