@@ -62,8 +62,9 @@ Both the ASP.NET Core and Next.js layers follow these practices when interacting
 8. The generated response is stored in PostgreSQL, cached in Redis, and later retrieved by the client using the task identifier.
 
 ## Deployment
-All services are containerized. Qdrant, PostgreSQL, the Redis cache, the RabbitMQ broker, the background worker service, and the Authentication/Authorization service run in separate Docker containers.
-A Docker Compose configuration orchestrates these services for local development, while Kubernetes deployments enable scaling individual services in production through replicas and service discovery.
+All services are containerized. The Next.js client and ASP.NET Core MVC server run in dedicated containers alongside Qdrant, PostgreSQL, the Redis cache, the RabbitMQ broker, the background worker service, and the Authentication/Authorization service.
+A Docker Compose configuration orchestrates these containers for local development, wiring the web client and server to the broker, cache, and database, while Kubernetes deployments enable scaling individual services in production through replicas and service discovery.
+Both orchestrators expose the containers on a shared network so the client can reach the server and backend services.
 A Redis instance named `redis-cache` handles application caching, while a RabbitMQ instance (`rabbitmq-broker`) manages task queues. `redis-cache` exposes port `6379`, and `rabbitmq-broker` exposes port `5672`.
 The authentication service runs in an `auth-service` container that exposes HTTP endpoints and signs tokens using `AUTH_JWT_SECRET` or mounted keys. Clients and servers reach it via `AUTH_SERVICE_URL`.
 The ASP.NET Core MVC server and worker read `CACHE_REDIS_URL` to connect to `redis-cache` and `BROKER_RABBITMQ_URL` for MassTransit to connect to `rabbitmq-broker`.
