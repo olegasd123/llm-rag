@@ -35,7 +35,10 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
   - Persists user credentials, chat history, and preferences.
   - Follows the conventions in `sql-style-guide.mdc` and runs in Docker.
 - **Authentication/Authorization Service**
-  - Issues and verifies JWTs to manage user identity and permissions.
+  - Provides login endpoints that validate user credentials against PostgreSQL.
+  - Issues short-lived JWTs with user ID and role claims after successful authentication.
+  - Signs tokens with a shared secret or private key so other services can verify them without reaching the issuer.
+  - Exposes an introspection endpoint for optional token checks and supports refresh tokens for long-lived sessions.
 - **Monitoring Stack**
   - Collects metrics and provides dashboards via Prometheus and Grafana.
   - Alerts on system health for proactive maintenance.
@@ -48,20 +51,22 @@ Both the ASP.NET Core and Next.js layers follow these practices when interacting
 - **Transactions**: Multi-statement operations wrap writes in transactions—`prisma.$transaction` in Next.js and `DbContext.Database.BeginTransaction` or `TransactionScope` in ASP.NET Core.
 
 ## Data Flow
-1. The Next.js client sends a user prompt to the ASP.NET Core MVC server.
-2. The server validates the user's JWT and places the prompt on the RabbitMQ queue via MassTransit.
-3. The server immediately returns a task identifier so the client can track status.
-4. The .NET worker retrieves the task from RabbitMQ through MassTransit, checking Redis for relevant vectors and user data.
-5. On a cache miss, the worker queries Qdrant for vectors and PostgreSQL for user data.
-6. The worker constructs an augmented prompt and forwards it to the LM Studio host.
-7. The generated response is stored in PostgreSQL, cached in Redis, and later retrieved by the client using the task identifier.
+1. The Next.js client authenticates with the Authentication/Authorization service, which verifies credentials and returns a signed JWT.
+2. The client includes the JWT when sending a user prompt to the ASP.NET Core MVC server.
+3. The server validates the token—checking its signature and expiration or calling the introspection endpoint—and places the prompt on the RabbitMQ queue via MassTransit.
+4. The server immediately returns a task identifier so the client can track status.
+5. The .NET worker retrieves the task from RabbitMQ through MassTransit, checking Redis for relevant vectors and user data.
+6. On a cache miss, the worker queries Qdrant for vectors and PostgreSQL for user data.
+7. The worker constructs an augmented prompt and forwards it to the LM Studio host.
+8. The generated response is stored in PostgreSQL, cached in Redis, and later retrieved by the client using the task identifier.
 
 ## Deployment
-All services are containerized. Qdrant, PostgreSQL, the Redis cache, the RabbitMQ broker, and the background worker service run in separate Docker containers.
+All services are containerized. Qdrant, PostgreSQL, the Redis cache, the RabbitMQ broker, the background worker service, and the Authentication/Authorization service run in separate Docker containers.
 A Docker Compose configuration orchestrates these services for local development, while Kubernetes deployments enable scaling individual services in production through replicas and service discovery.
 A Redis instance named `redis-cache` handles application caching, while a RabbitMQ instance (`rabbitmq-broker`) manages task queues. `redis-cache` exposes port `6379`, and `rabbitmq-broker` exposes port `5672`.
+The authentication service runs in an `auth-service` container that exposes HTTP endpoints and signs tokens using `AUTH_JWT_SECRET` or mounted keys. Clients and servers reach it via `AUTH_SERVICE_URL`.
 The ASP.NET Core MVC server and worker read `CACHE_REDIS_URL` to connect to `redis-cache` and `BROKER_RABBITMQ_URL` for MassTransit to connect to `rabbitmq-broker`.
-The ASP.NET Core MVC server connects to the LM Studio host and enqueues jobs to the broker via MassTransit, while workers consume them through MassTransit.
+The ASP.NET Core MVC server connects to the LM Studio host and enqueues jobs to the broker via MassTransit, while workers consume them through MassTransit. The server validates JWTs locally using the shared secret or by calling the auth service's introspection endpoint.
 The ASP.NET Core MVC tier can be replicated behind a load balancer (e.g., Nginx, Traefik, or a cloud provider gateway) to evenly distribute API requests and increase availability.
 The Next.js client interacts with the server over HTTP and can be horizontally scaled by running multiple stateless instances behind a CDN or load balancer.
 Sensitive data is encrypted at rest and in transit.
