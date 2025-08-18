@@ -17,9 +17,8 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
   - Follows the guidelines in `net-dev-rules.mdc`.
 - **Message Broker**
   - Dispatches tasks between the ASP.NET Core MVC server and background workers.
-  - Uses a dedicated Redis instance running in its own container (`redis-broker`).
-  - Connection settings are supplied via `BROKER_REDIS_URL` (e.g., `redis://redis-broker:6379/0`).
-  - RabbitMQ can replace the Redis broker if required.
+  - Uses a RabbitMQ instance running in its own container (`rabbitmq-broker`).
+  - Connection settings are supplied via `BROKER_RABBITMQ_URL` (e.g., `amqp://rabbitmq-broker:5672`).
 - **Background Worker Service**
   - Implemented in C# as a .NET background worker using Hangfire or a custom `IHostedService`.
   - Consumes queued prompts from the message broker, updates task status, and persists results.
@@ -49,19 +48,18 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
 
 ## Data Flow
 1. The Next.js client sends a user prompt to the ASP.NET Core MVC server.
-2. The server validates the user's JWT and places the prompt on the message broker queue.
+2. The server validates the user's JWT and places the prompt on the RabbitMQ queue.
 3. The server immediately returns a task identifier so the client can track status.
-4. The .NET worker retrieves the task, checking Redis for relevant vectors and user data.
+4. The .NET worker retrieves the task from RabbitMQ, checking Redis for relevant vectors and user data.
 5. On a cache miss, the worker queries Qdrant for vectors and PostgreSQL for user data.
 6. The worker constructs an augmented prompt and forwards it to the LM Studio host.
 7. The generated response is stored in PostgreSQL, cached in Redis, and later retrieved by the client using the task identifier.
 
 ## Deployment
-All services are containerized. Qdrant, PostgreSQL, the Redis cache, the Redis broker, and the background worker service run in separate Docker containers.
+All services are containerized. Qdrant, PostgreSQL, the Redis cache, the RabbitMQ broker, and the background worker service run in separate Docker containers.
 A Docker Compose configuration orchestrates these services for local development, while Kubernetes deployments enable scaling individual services in production through replicas and service discovery.
-Two Redis instances are provisioned: `redis-cache` for application caching and `redis-broker` for Hangfire or task queues. Each exposes port `6379` and maintains its own volume for persistence.
-The ASP.NET Core MVC server and worker read `CACHE_REDIS_URL` to connect to `redis-cache` and `BROKER_REDIS_URL` to connect to `redis-broker`.
-If RabbitMQ is preferred for task distribution, the `BROKER_REDIS_URL` setting is replaced by the appropriate RabbitMQ connection string.
+A Redis instance named `redis-cache` handles application caching, while a RabbitMQ instance (`rabbitmq-broker`) manages task queues. `redis-cache` exposes port `6379`, and `rabbitmq-broker` exposes port `5672`.
+The ASP.NET Core MVC server and worker read `CACHE_REDIS_URL` to connect to `redis-cache` and `BROKER_RABBITMQ_URL` to connect to `rabbitmq-broker`.
 The ASP.NET Core MVC server connects to the LM Studio host and enqueues jobs to the broker, while workers consume them.
 The ASP.NET Core MVC tier can be replicated behind a load balancer (e.g., Nginx, Traefik, or a cloud provider gateway) to evenly distribute API requests and increase availability.
 The Next.js client interacts with the server over HTTP and can be horizontally scaled by running multiple stateless instances behind a CDN or load balancer.
