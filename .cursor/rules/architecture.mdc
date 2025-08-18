@@ -47,6 +47,13 @@ The project enables Retrieval-Augmented Generation using a web client, an API se
 7. The generated response is stored in PostgreSQL, cached in Redis, and later retrieved by the client using the task identifier.
 
 ## Deployment
-All services are containerized. Qdrant, PostgreSQL, Redis, the message broker, and the background worker service run in separate Docker containers. Redis is configured with a persistent volume and environment variables for host and port. For task distribution, deploy a broker such as Redis or RabbitMQ and point worker containers to it via environment variables. The FastAPI server connects to the LM Studio host and enqueues jobs to the broker, while workers consume them. The Next.js client interacts with the server over HTTP. Sensitive data is encrypted at rest and in transit.
+All services are containerized. Qdrant, PostgreSQL, Redis, the message broker, and the background worker service run in separate Docker containers.
+A Docker Compose configuration orchestrates these services for local development, while Kubernetes deployments enable scaling individual services in production through replicas and service discovery.
+Redis is configured with a persistent volume and environment variables for host and port.
+For task distribution, deploy a broker such as Redis or RabbitMQ and point worker containers to it via environment variables.
+The FastAPI server connects to the LM Studio host and enqueues jobs to the broker, while workers consume them.
+The FastAPI tier can be replicated behind a load balancer (e.g., Nginx, Traefik, or a cloud provider gateway) to evenly distribute API requests and increase availability.
+The Next.js client interacts with the server over HTTP and can be horizontally scaled by running multiple stateless instances behind a CDN or load balancer.
+Sensitive data is encrypted at rest and in transit.
 
 Each service emits structured logs to a centralized aggregator and propagates trace IDs using OpenTelemetry. Metrics, logs, and traces flow into the monitoring stack for dashboards and alerts, ensuring insight into overall system health.
