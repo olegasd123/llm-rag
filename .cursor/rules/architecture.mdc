@@ -9,7 +9,7 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
 ## Components
 - **Next.js Client**
   - Provides a ChatGPT-style interface for user prompts.
-  - Use Prisma ORM for PostgreSQL.
+  - Uses Prisma ORM for PostgreSQL.
   - Follows the guidelines in `next-dev-rules.mdc`.
 - **ASP.NET Core MVC Server**
   - Receives prompts, orchestrates retrieval and generation, and exposes REST endpoints.
@@ -17,42 +17,60 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
   - Follows the guidelines in `net-dev-rules.mdc`.
 - **Message Broker**
   - Dispatches tasks between the ASP.NET Core MVC server and background workers.
-  - Supports Redis or RabbitMQ backends running in their own containers.
+  - Uses a RabbitMQ instance running in its own container (`rabbitmq-broker`) and the MassTransit library for queue management.
+  - Connection settings are supplied via `BROKER_RABBITMQ_URL` (e.g., `amqp://rabbitmq-broker:5672`).
 - **Background Worker Service**
-  - Processes queued prompts asynchronously (e.g., with Celery or RQ).
-  - Updates task status and persists results.
+  - Implemented in C# as a .NET background worker that uses MassTransit to consume jobs from RabbitMQ.
+  - Uses RabbitMQ solely for message transport; task state and results are persisted in PostgreSQL and cached in Redis. Hangfire is not employed for scheduling or storage.
 - **Redis Cache**
   - Caches recent vector queries and user data to reduce database load.
-  - Runs in a dedicated Docker container.
+  - Uses a separate Redis instance in the `redis-cache` container.
+  - Clients connect using `CACHE_REDIS_URL` (e.g., `redis://redis-cache:6379/0`).
 - **Qdrant Vector Store**
   - Stores document embeddings for context retrieval.
   - Runs in a dedicated Docker container.
+  - Clients connect using `QDRANT_URL` (e.g., `http://qdrant:6333`).
 - **LM Studio Host**
   - Serves language models that generate responses.
+  - Clients connect using `LM_HOST_URL` (e.g., `http://lm-studio-host:8080`).
 - **PostgreSQL Database**
   - Persists user credentials, chat history, and preferences.
   - Follows the conventions in `sql-style-guide.mdc` and runs in Docker.
+  - Services connect using `POSTGRES_URL` (e.g., `postgresql://postgres:postgres@postgres-db:5432/app`).
 - **Authentication/Authorization Service**
-  - Issues and verifies JWTs to manage user identity and permissions.
+  - Provides login endpoints that validate user credentials against PostgreSQL.
+  - Issues short-lived JWTs with user ID and role claims after successful authentication.
+  - Signs tokens with a shared secret or private key so other services can verify them without reaching the issuer.
+  - Exposes an introspection endpoint for optional token checks and supports refresh tokens for long-lived sessions.
 - **Monitoring Stack**
   - Collects metrics and provides dashboards via Prometheus and Grafana.
   - Alerts on system health for proactive maintenance.
 
+### Coordinated PostgreSQL Access
+Both the ASP.NET Core and Next.js layers follow these practices when interacting with PostgreSQL:
+- **Migration ownership**: The ASP.NET Core stack generates and runs migrations via EF Core. CI/CD executes `dotnet ef database update` before deploying services.
+- **Model synchronization**: After migrations, the Next.js layer refreshes its schema with `prisma db pull` to regenerate the Prisma client.
+- **Concurrency and isolation**: Both layers use optimistic concurrency with a `row_version`/`version` column and operate at the `READ COMMITTED` isolation level.
+- **Transactions**: Multi-statement operations wrap writes in transactions—`prisma.$transaction` in Next.js and `DbContext.Database.BeginTransaction` or `TransactionScope` in ASP.NET Core.
+
 ## Data Flow
-1. The Next.js client sends a user prompt to the ASP.NET Core MVC server.
-2. The server validates the user's JWT and places the prompt on the message broker queue.
-3. The server immediately returns a task identifier so the client can track status.
-4. A background worker retrieves the task, checking Redis for relevant vectors and user data.
-5. On a cache miss, the worker queries Qdrant for vectors and PostgreSQL for user data.
-6. The worker constructs an augmented prompt and forwards it to the LM Studio host.
-7. The generated response is stored in PostgreSQL, cached in Redis, and later retrieved by the client using the task identifier.
+1. The Next.js client authenticates with the Authentication/Authorization service, which verifies credentials and returns a signed JWT.
+2. The client includes the JWT when sending a user prompt to the ASP.NET Core MVC server.
+3. The server validates the token—checking its signature and expiration or calling the introspection endpoint—and places the prompt on the RabbitMQ queue via MassTransit.
+4. The server immediately returns a task identifier so the client can track status.
+5. The .NET worker retrieves the task from RabbitMQ through MassTransit, checking Redis for relevant vectors and user data.
+6. On a cache miss, the worker queries Qdrant for vectors and PostgreSQL for user data.
+7. The worker constructs an augmented prompt and forwards it to the LM Studio host.
+8. The generated response is stored in PostgreSQL, cached in Redis, and later retrieved by the client using the task identifier.
 
 ## Deployment
-All services are containerized. Qdrant, PostgreSQL, Redis, the message broker, and the background worker service run in separate Docker containers.
-A Docker Compose configuration orchestrates these services for local development, while Kubernetes deployments enable scaling individual services in production through replicas and service discovery.
-Redis is configured with a persistent volume and environment variables for host and port.
-For task distribution, deploy a broker such as Redis or RabbitMQ and point worker containers to it via environment variables.
-The ASP.NET Core MVC server connects to the LM Studio host and enqueues jobs to the broker, while workers consume them.
+All services are containerized. The Next.js client and ASP.NET Core MVC server run in dedicated containers alongside Qdrant, PostgreSQL, the Redis cache, the RabbitMQ broker, the background worker service, and the Authentication/Authorization service.
+A Docker Compose configuration orchestrates these containers for local development, wiring the web client and server to the broker, cache, and database, while Kubernetes deployments enable scaling individual services in production through replicas and service discovery.
+Both orchestrators expose the containers on a shared network so the client can reach the server and backend services.
+A Redis instance named `redis-cache` handles application caching, while a RabbitMQ instance (`rabbitmq-broker`) manages task queues. `redis-cache` exposes port `6379`, and `rabbitmq-broker` exposes port `5672`.
+The authentication service runs in an `auth-service` container that exposes HTTP endpoints and signs tokens using `AUTH_JWT_SECRET` or mounted keys. Clients and servers reach it via `AUTH_SERVICE_URL`.
+The ASP.NET Core MVC server and worker read `CACHE_REDIS_URL` to connect to `redis-cache`, `BROKER_RABBITMQ_URL` for MassTransit to connect to `rabbitmq-broker`, `QDRANT_URL` for the vector store, and `POSTGRES_URL` for PostgreSQL.
+The ASP.NET Core MVC server connects to the LM Studio host and enqueues jobs to the broker via MassTransit, while workers consume them through MassTransit. The server validates JWTs locally using the shared secret or by calling the auth service's introspection endpoint.
 The ASP.NET Core MVC tier can be replicated behind a load balancer (e.g., Nginx, Traefik, or a cloud provider gateway) to evenly distribute API requests and increase availability.
 The Next.js client interacts with the server over HTTP and can be horizontally scaled by running multiple stateless instances behind a CDN or load balancer.
 Sensitive data is encrypted at rest and in transit.
