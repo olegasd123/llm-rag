@@ -35,6 +35,12 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
 - **PostgreSQL Database**
   - Persists user credentials, chat history, and preferences.
   - Follows the conventions in `sql-style-guide.mdc` and runs in Docker.
+
+### Coordinated PostgreSQL Access
+- **Migration ownership**: The ASP.NET Core stack generates and runs migrations via EF Core. CI/CD executes `dotnet ef database update` before deploying services.
+- **Model synchronization**: After migrations, the Next.js layer refreshes its schema with `prisma db pull` to regenerate the Prisma client.
+- **Concurrency and isolation**: Both layers use optimistic concurrency with a `row_version`/`version` column and operate at the `READ COMMITTED` isolation level.
+- **Transactions**: Multi-statement operations wrap writes in transactions—`prisma.$transaction` in Next.js and `DbContext.Database.BeginTransaction` or `TransactionScope` in ASP.NET Core.
 - **Authentication/Authorization Service**
   - Issues and verifies JWTs to manage user identity and permissions.
 - **Monitoring Stack**
