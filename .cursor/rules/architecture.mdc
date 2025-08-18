@@ -21,7 +21,7 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
   - Connection settings are supplied via `BROKER_RABBITMQ_URL` (e.g., `amqp://rabbitmq-broker:5672`).
 - **Background Worker Service**
   - Implemented in C# as a .NET background worker that uses MassTransit to consume jobs from RabbitMQ.
-  - Handles task status and result persistence directly through the broker; Hangfire is not employed for scheduling or storage.
+  - Uses RabbitMQ solely for message transport; task state and results are persisted in PostgreSQL and cached in Redis. Hangfire is not employed for scheduling or storage.
 - **Redis Cache**
   - Caches recent vector queries and user data to reduce database load.
   - Uses a separate Redis instance in the `redis-cache` container.
