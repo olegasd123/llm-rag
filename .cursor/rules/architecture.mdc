@@ -36,7 +36,14 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
   - Implemented in C# as a .NET background worker that uses MassTransit to consume jobs from RabbitMQ.
   - Runs in the `rag-worker` container.
   - Uses RabbitMQ solely for message transport; task state and results are persisted in PostgreSQL and cached in Redis. Hangfire is not employed for scheduling or storage.
-  - Reads `MESSAGE_BROKER_URL` (e.g., `amqp://rag-message-broker:5672`), `DATA_CACHE_URL` (e.g., `redis://rag-data-cache:6379/0`), `VECTOR_DB_URL` (e.g., `http://rag-vector-db:6333`), `LM_HOST_URL` (e.g., `http://rag-lm-host:8080`), `MAIN_DB_URL` (e.g., `postgresql://postgres:postgres@rag-postgres-db:5432/app`), `AUTH_SERVICE_URL` (e.g., `http://rag-auth-service:8080`), and `MONITORING_URL` (e.g., `http://rag-monitoring:3000`).
+  - Reads connection settings from environment variables:
+    - `MESSAGE_BROKER_URL` (e.g., `amqp://rag-message-broker:5672`)
+    - `DATA_CACHE_URL` (e.g., `redis://rag-data-cache:6379/0`)
+    - `VECTOR_DB_URL` (e.g., `http://rag-vector-db:6333`)
+    - `LM_HOST_URL` (e.g., `http://rag-lm-host:8080`)
+    - `MAIN_DB_URL` (e.g., `postgresql://postgres:postgres@rag-postgres-db:5432/app`)
+    - `AUTH_SERVICE_URL` (e.g., `http://rag-auth-service:8080`)
+    - `MONITORING_URL` (e.g., `http://rag-monitoring:3000`).
 - **Redis Cache**
   - Caches recent vector queries and user data to reduce database load.
   - Uses a separate Redis instance in the `rag-data-cache` container.
