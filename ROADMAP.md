@@ -5,23 +5,23 @@ This roadmap outlines steps to implement the Retrieval-Augmented Generation plat
 ## Phase 1: Infrastructure Setup
 - Containerize all core services with Docker Compose for local development.
 - Provision foundational components:
-  - PostgreSQL (`rag-postgres-db`)
-  - Redis cache (`rag-data-cache`)
-  - RabbitMQ broker (`rag-message-broker`)
-  - Qdrant vector store (`rag-vector-db`)
-  - LM Studio host
+  - Main Database, PostgresSQL (`rag-main-db`)
+  - Data Cache, Redis (`rag-data-cache`)
+  - Message Broker, RabbitMQ (`rag-message-broker`)
+  - Vector Database, Qdrant (`rag-vector-db`)
+  - AI Host, LM Studio runs locally
 - Define shared network and environment variables:
   - `WEB_SERVICE_URL`
   - `DATA_CACHE_URL`
   - `MESSAGE_BROKER_URL`
   - `VECTOR_DB_URL`
-  - `LM_HOST_URL`
+  - `AI_HOST_URL`
   - `MAIN_DB_URL`
   - `AUTH_SERVICE_URL`
   - `MONITORING_URL`
 
-## Phase 2: Authentication Service
-- Implement the authentication/authorization service in the `rag-auth-service` container using .NET 8.
+## Phase 2: Auth Service
+- Implement the Auth Service in the `rag-auth-service` container using .NET 8.
 - Provide login endpoints that verify credentials against PostgreSQL and issue JWTs.
 - Support token introspection and refresh tokens.
 
@@ -31,12 +31,12 @@ This roadmap outlines steps to implement the Retrieval-Augmented Generation plat
 - Read connection settings from environment variables and enqueue tasks to RabbitMQ via MassTransit.
 - Validate JWTs from the auth service before accepting requests.
 
-## Phase 4: Background Worker Service
-- Create a .NET worker running in the `rag-worker` container.
+## Phase 4: Background Worker
+- Create a .NET worker running in the `rag-background-worker` container.
 - Consume jobs from RabbitMQ and orchestrate retrieval and generation:
   - Check Redis for cached vectors and user data.
   - Query Qdrant and PostgreSQL on cache misses.
-  - Forward augmented prompts to the LM Studio host.
+  - Forward augmented prompts to the AI Host.
 - Store responses in PostgreSQL and cache them in Redis.
 
 ## Phase 5: Client App
