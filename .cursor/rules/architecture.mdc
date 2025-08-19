@@ -10,10 +10,20 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
 - **Next.js Client**
   - Provides a ChatGPT-style interface for user prompts.
   - Uses Prisma ORM for PostgreSQL.
+  - Runs in the `rag-web-client` container.
+  - Uses `NEXT_PUBLIC_API_URL` to reach the API server (e.g., `http://rag-api-server:8080`).
   - Follows the guidelines in `next-dev-rules.mdc`.
 - **ASP.NET Core MVC Server**
   - Receives prompts, orchestrates retrieval and generation, and exposes REST endpoints.
   - Implemented in C# using .NET 8 and follows standard ASP.NET Core conventions.
+  - Runs in the `rag-api-server` container.
+  - Reads connection settings from environment variables:
+    - `DATA_CACHE_URL` (e.g., `redis://rag-data-cache:6379/0`)
+    - `MESSAGE_BROKER_URL` (e.g., `amqp://rag-message-broker:5672`)
+    - `VECTOR_DB_URL` (e.g., `http://rag-vector-db:6333`)
+    - `LM_HOST_URL` (e.g., `http://rag-lm-host:8080`)
+    - `MAIN_DB_URL` (e.g., `postgresql://postgres:postgres@rag-postgres-db:5432/app`)
+    - `AUTH_SERVICE_URL` (e.g., `http://rag-auth-service:8080`)
   - Follows the guidelines in `net-dev-rules.mdc`.
 - **Message Broker**
   - Dispatches tasks between the ASP.NET Core MVC server and background workers.
@@ -21,29 +31,34 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
   - Connection settings are supplied via `MESSAGE_BROKER_URL` (e.g., `amqp://rag-message-broker:5672`).
 - **Background Worker Service**
   - Implemented in C# as a .NET background worker that uses MassTransit to consume jobs from RabbitMQ.
+  - Runs in the `rag-worker` container.
   - Uses RabbitMQ solely for message transport; task state and results are persisted in PostgreSQL and cached in Redis. Hangfire is not employed for scheduling or storage.
+  - Reads `MESSAGE_BROKER_URL` (e.g., `amqp://rag-message-broker:5672`), `DATA_CACHE_URL` (e.g., `redis://rag-data-cache:6379/0`), `VECTOR_DB_URL` (e.g., `http://rag-vector-db:6333`), `LM_HOST_URL` (e.g., `http://rag-lm-host:8080`), and `MAIN_DB_URL` (e.g., `postgresql://postgres:postgres@rag-postgres-db:5432/app`).
 - **Redis Cache**
   - Caches recent vector queries and user data to reduce database load.
   - Uses a separate Redis instance in the `rag-data-cache` container.
   - Clients connect using `DATA_CACHE_URL` (e.g., `redis://rag-data-cache:6379/0`).
 - **Qdrant Vector Store**
   - Stores document embeddings for context retrieval.
-  - Runs in a dedicated Docker container.
-  - Clients connect using `VECTOR_DB_URL` (e.g., `http://qdrant:6333`).
+  - Runs in the `rag-vector-db` container.
+  - Clients connect using `VECTOR_DB_URL` (e.g., `http://rag-vector-db:6333`).
 - **LM Studio Host**
   - Serves language models that generate responses.
-  - Clients connect using `LM_HOST_URL` (e.g., `http://lm-studio-host:8080`).
+  - Runs in the `rag-lm-host` container.
+  - Clients connect using `LM_HOST_URL` (e.g., `http://rag-lm-host:8080`).
 - **PostgreSQL Database**
   - Persists user credentials, chat history, and preferences.
-  - Follows the conventions in `sql-style-guide.mdc` and runs in Docker.
-  - Services connect using `MAIN_DB_URL` (e.g., `postgresql://postgres:postgres@postgres-db:5432/app`).
+  - Follows the conventions in `sql-style-guide.mdc` and runs in the `rag-postgres-db` container.
+  - Services connect using `MAIN_DB_URL` (e.g., `postgresql://postgres:postgres@rag-postgres-db:5432/app`).
 - **Authentication/Authorization Service**
   - Provides login endpoints that validate user credentials against PostgreSQL.
   - Issues short-lived JWTs with user ID and role claims after successful authentication.
   - Signs tokens with a shared secret or private key so other services can verify them without reaching the issuer.
+  - Runs in the `rag-auth-service` container and is reachable via `AUTH_SERVICE_URL` (e.g., `http://rag-auth-service:8080`).
   - Exposes an introspection endpoint for optional token checks and supports refresh tokens for long-lived sessions.
 - **Monitoring Stack**
   - Collects metrics and provides dashboards via Prometheus and Grafana.
+  - Runs in the `rag-monitoring` container and is reachable via `MONITORING_URL` (e.g., `http://rag-monitoring:3000`).
   - Alerts on system health for proactive maintenance.
 
 ### Coordinated PostgreSQL Access
@@ -64,15 +79,15 @@ Both the ASP.NET Core and Next.js layers follow these practices when interacting
 8. The generated response is stored in PostgreSQL, cached in Redis, and later retrieved by the client using the task identifier.
 
 ## Deployment
-All services are containerized. The Next.js client and ASP.NET Core MVC server run in dedicated containers alongside Qdrant, PostgreSQL, the Redis cache, the RabbitMQ broker, the background worker service, and the Authentication/Authorization service.
+All services are containerized. The Next.js client (`rag-web-client`) and ASP.NET Core MVC server (`rag-api-server`) run in dedicated containers alongside the LM Studio host (`rag-lm-host`), Qdrant (`rag-vector-db`), PostgreSQL (`rag-postgres-db`), the Redis cache (`rag-data-cache`), the RabbitMQ broker (`rag-message-broker`), the background worker service (`rag-worker`), the Authentication/Authorization service (`rag-auth-service`), and the monitoring stack (`rag-monitoring`).
 A Docker Compose configuration orchestrates these containers for local development, wiring the web client and server to the broker, cache, and database, while Kubernetes deployments enable scaling individual services in production through replicas and service discovery.
 Both orchestrators expose the containers on a shared network so the client can reach the server and backend services.
 A Redis instance named `rag-data-cache` handles application caching, while a RabbitMQ instance (`rag-message-broker`) manages task queues. `rag-data-cache` exposes port `6379`, and `rag-message-broker` exposes port `5672`.
-The authentication service runs in an `auth-service` container that exposes HTTP endpoints and signs tokens using `AUTH_JWT_SECRET` or mounted keys. Clients and servers reach it via `AUTH_SERVICE_URL`.
-The ASP.NET Core MVC server and worker read `DATA_CACHE_URL` to connect to `rag-data-cache`, `MESSAGE_BROKER_URL` for MassTransit to connect to `rag-message-broker`, `VECTOR_DB_URL` for the vector store, and `MAIN_DB_URL` for PostgreSQL.
-The ASP.NET Core MVC server connects to the LM Studio host and enqueues jobs to the broker via MassTransit, while workers consume them through MassTransit. The server validates JWTs locally using the shared secret or by calling the auth service's introspection endpoint.
+The authentication service runs in the `rag-auth-service` container, which exposes HTTP endpoints and signs tokens using `AUTH_JWT_SECRET` or mounted keys. Clients and servers reach it via `AUTH_SERVICE_URL` (e.g., `http://rag-auth-service:8080`).
+The ASP.NET Core MVC server and worker read `AUTH_SERVICE_URL` for `rag-auth-service`, `DATA_CACHE_URL` to connect to `rag-data-cache`, `MESSAGE_BROKER_URL` for MassTransit to connect to `rag-message-broker`, `VECTOR_DB_URL` for `rag-vector-db`, `LM_HOST_URL` for `rag-lm-host`, and `MAIN_DB_URL` for `rag-postgres-db`.
+The ASP.NET Core MVC server connects to the LM Studio host (`rag-lm-host`) and enqueues jobs to the broker (`rag-message-broker`) via MassTransit, while workers consume them through MassTransit. The server validates JWTs locally using the shared secret or by calling the auth service's (`rag-auth-service`) introspection endpoint.
 The ASP.NET Core MVC tier can be replicated behind a load balancer (e.g., Nginx, Traefik, or a cloud provider gateway) to evenly distribute API requests and increase availability.
-The Next.js client interacts with the server over HTTP and can be horizontally scaled by running multiple stateless instances behind a CDN or load balancer.
+The Next.js client (`rag-web-client`) interacts with the server (`rag-api-server`) over HTTP and can be horizontally scaled by running multiple stateless instances behind a CDN or load balancer.
 Sensitive data is encrypted at rest and in transit.
 
 Each service emits structured logs to a centralized aggregator and propagates trace IDs using OpenTelemetry. Metrics, logs, and traces flow into the monitoring stack for dashboards and alerts, ensuring insight into overall system health.
