@@ -1,9 +1,9 @@
 ```mermaid
 graph TD
-    User-->Client[Next.js Client]
+    User-->Client[Client App]
     Client-- Request JWT -->Auth[Auth Service]
     Auth-- Signed JWT -->Client
-    Client-- Prompt + JWT -->Api[ASP.NET Core MVC Server]
+    Client-- Prompt + JWT -->Api[Web Service]
     Api-- Enqueue prompt -->Broker[RabbitMQ]
     Broker-- Deliver task -->Worker[Background Worker]
     Worker-- Check cache -->Redis[Redis Cache]

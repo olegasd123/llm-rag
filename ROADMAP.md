@@ -11,6 +11,7 @@ This roadmap outlines steps to implement the Retrieval-Augmented Generation plat
   - Qdrant vector store (`rag-vector-db`)
   - LM Studio host
 - Define shared network and environment variables:
+  - `WEB_SERVICE_URL`
   - `DATA_CACHE_URL`
   - `MESSAGE_BROKER_URL`
   - `VECTOR_DB_URL`
@@ -20,12 +21,12 @@ This roadmap outlines steps to implement the Retrieval-Augmented Generation plat
   - `MONITORING_URL`
 
 ## Phase 2: Authentication Service
-- Implement the authentication/authorization service in the `rag-auth-service` container.
+- Implement the authentication/authorization service in the `rag-auth-service` container using .NET 8.
 - Provide login endpoints that verify credentials against PostgreSQL and issue JWTs.
 - Support token introspection and refresh tokens.
 
-## Phase 3: ASP.NET Core MVC Server
-- Develop the API server in the `rag-api-server` container using .NET 8.
+## Phase 3: Web Service
+- Develop the API server in the `rag-web-service` container using .NET 8.
 - Expose REST endpoints for prompt submission and result retrieval.
 - Read connection settings from environment variables and enqueue tasks to RabbitMQ via MassTransit.
 - Validate JWTs from the auth service before accepting requests.
@@ -38,8 +39,8 @@ This roadmap outlines steps to implement the Retrieval-Augmented Generation plat
   - Forward augmented prompts to the LM Studio host.
 - Store responses in PostgreSQL and cache them in Redis.
 
-## Phase 5: Next.js Client
-- Build a ChatGPT-style interface in the `rag-web-client` container.
+## Phase 5: Client App
+- Build a ChatGPT-style interface in the `rag-client-app` container.
 - Authenticate via the auth service and send prompts to the API server using `AUTH_SERVICE_URL`.
 - Poll for task status using the returned task identifier.
 
@@ -51,6 +52,5 @@ This roadmap outlines steps to implement the Retrieval-Augmented Generation plat
 ## Phase 7: Deployment & Scaling
 - Ensure all services emit structured logs and propagate trace IDs.
 - Use Kubernetes manifests for production to scale services independently.
-- Add load balancing for the ASP.NET Core MVC server and Next.js client.
+- Add load balancing for the Web Service and Client App.
 - Encrypt sensitive data at rest and in transit.
-

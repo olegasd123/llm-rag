@@ -1,8 +1,8 @@
 graph TD
-    User-->Client[Next.js Client]
+    User-->Client[Client App]
     Client-- Request JWT -->Auth[Auth Service]
     Auth-- Signed JWT -->Client
-    Client-- Profile update + JWT -->Api[ASP.NET Core MVC Server]
+    Client-- Profile update + JWT -->Api[Web Service]
     Api-- Validate & write -->Postgres[PostgreSQL]
     Api-- Update cache -->Redis[Redis Cache]
     Api-- Acknowledge update -->Client
