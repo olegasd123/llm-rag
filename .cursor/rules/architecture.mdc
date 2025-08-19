@@ -9,8 +9,6 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
 ## Components
 - **Next.js Client**
   - Provides a ChatGPT-style interface for user prompts.
-  - Prisma ORM is present, but there is no direct PostgreSQL access; all persistence is handled through the ASP.NET Core API and message queue.
-  - Prisma reads the PostgreSQL connection string from the `MAIN_DB_URL` environment variable.
   - Runs in the `rag-web-client` container.
   - Uses `AUTH_SERVICE_URL` to reach the Authentication/Authorization service.
   - Uses `API_URL` to reach the ASP.NET Core MVC Server.
@@ -71,13 +69,6 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
   - Collects metrics and provides dashboards via Prometheus and Grafana.
   - Runs in the `rag-monitoring` container and is reachable via `MONITORING_URL` (e.g., `http://rag-monitoring:3000`).
   - Alerts on system health for proactive maintenance.
-
-### Coordinated PostgreSQL Access
-Both the ASP.NET Core and Next.js layers follow these practices when interacting with PostgreSQL:
-- **Migration ownership**: The ASP.NET Core stack generates and runs migrations via EF Core. CI/CD executes `dotnet ef database update` before deploying services.
-- **Model synchronization**: After migrations, the Next.js layer refreshes its schema with `prisma db pull` to regenerate the Prisma client.
-- **Concurrency and isolation**: Both layers use optimistic concurrency with a `row_version`/`version` column and operate at the `READ COMMITTED` isolation level.
-- **Transactions**: Multi-statement operations wrap writes in transactions—`prisma.$transaction` in Next.js and `DbContext.Database.BeginTransaction` or `TransactionScope` in ASP.NET Core.
 
 ## Data Flow
 1. The Next.js client authenticates with the Authentication/Authorization service, which verifies credentials and returns a signed JWT.
