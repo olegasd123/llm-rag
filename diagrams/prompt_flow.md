@@ -7,7 +7,7 @@ graph TD
     Api-- Enqueue prompt -->Broker[Queue - RabbitMQ]
     Broker-- Deliver task -->Worker[Background Worker - .NET]
     Worker-- Check cache -->Redis[Cache - Redis]
-    Worker-- Query vectors -->Qdrant[Vector DB - Qdrant]
+    Worker-- Query vectors -->Qdrant[Vector Database - Qdrant]
     Worker-- Query user data -->Postgres[Database - PostgreSQL]
     Worker-- Augment prompt & send -->LM[AI Host - LM Studio]
     LM-- Generated answer -->Worker
