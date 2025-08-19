@@ -24,6 +24,7 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
     - `LM_HOST_URL` (e.g., `http://rag-lm-host:8080`)
     - `MAIN_DB_URL` (e.g., `postgresql://postgres:postgres@rag-postgres-db:5432/app`)
     - `AUTH_SERVICE_URL` (e.g., `http://rag-auth-service:8080`)
+    - `MONITORING_URL` (e.g., `http://rag-monitoring:3000`)
   - Follows the guidelines in `net-dev-rules.mdc`.
 - **Message Broker**
   - Dispatches tasks between the ASP.NET Core MVC server and background workers.
@@ -83,7 +84,7 @@ A Docker Compose configuration orchestrates these containers for local developme
 Both orchestrators expose the containers on a shared network so the client can reach the server and backend services.
 A Redis instance named `rag-data-cache` handles application caching, while a RabbitMQ instance (`rag-message-broker`) manages task queues. `rag-data-cache` exposes port `6379`, and `rag-message-broker` exposes port `5672`.
 The authentication service runs in the `rag-auth-service` container, which exposes HTTP endpoints and signs tokens using `AUTH_JWT_SECRET` or mounted keys. Clients and servers reach it via `AUTH_SERVICE_URL` (e.g., `http://rag-auth-service:8080`).
-The ASP.NET Core MVC server and worker read `AUTH_SERVICE_URL` for `rag-auth-service`, `DATA_CACHE_URL` to connect to `rag-data-cache`, `MESSAGE_BROKER_URL` for MassTransit to connect to `rag-message-broker`, `VECTOR_DB_URL` for `rag-vector-db`, `LM_HOST_URL` for `rag-lm-host`, and `MAIN_DB_URL` for `rag-postgres-db`.
+The ASP.NET Core MVC server and worker read `AUTH_SERVICE_URL` for `rag-auth-service`, `DATA_CACHE_URL` to connect to `rag-data-cache`, `MESSAGE_BROKER_URL` for MassTransit to connect to `rag-message-broker`, `VECTOR_DB_URL` for `rag-vector-db`, `LM_HOST_URL` for `rag-lm-host`, `MAIN_DB_URL` for `rag-postgres-db`, and `MONITORING_URL` for `rag-monitoring`.
 The ASP.NET Core MVC server connects to the LM Studio host and enqueues jobs to the broker (`rag-message-broker`) via MassTransit, while workers consume them through MassTransit. The server validates JWTs locally using the shared secret or by calling the auth service's (`rag-auth-service`) introspection endpoint.
 The ASP.NET Core MVC tier can be replicated behind a load balancer (e.g., Nginx, Traefik, or a cloud provider gateway) to evenly distribute API requests and increase availability.
 The Next.js client (`rag-web-client`) interacts with the server (`rag-api-server`) over HTTP and can be horizontally scaled by running multiple stateless instances behind a CDN or load balancer.
