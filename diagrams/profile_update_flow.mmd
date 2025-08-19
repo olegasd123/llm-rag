@@ -1,9 +1,9 @@
 graph TD
-    User-->Client[Client App (Next.js)]
-    Client-- Request JWT -->Auth[Auth Service (.NET)]
+    User-->Client[Client App - Next.js]
+    Client-- Request JWT -->Auth[Auth Service - .NET]
     Auth-- Signed JWT -->Client
-    Client-- Profile update + JWT -->Api[Web Service (.NET)]
-    Api-- Validate & write -->Postgres[ Database (PostgreSQL)]
-    Api-- Update cache -->Redis[Cache (Redis)]
+    Client-- Profile update + JWT -->Api[Web Service - .NET]
+    Api-- Validate & write -->Postgres[ Database - PostgreSQL]
+    Api-- Update cache -->Redis[Cache - Redis]
     Api-- Acknowledge update -->Client
     Client-->User
