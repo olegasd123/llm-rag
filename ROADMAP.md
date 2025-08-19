@@ -41,7 +41,7 @@ This roadmap outlines steps to implement the Retrieval-Augmented Generation plat
 
 ## Phase 5: Client App
 - Build a ChatGPT-style interface in the `rag-client-app` container.
-- Authenticate via the auth service and send prompts to the API server using `WEB_SERVICE_URL`.
+- Authenticate via the Auth Service and send prompts to the Web Service.
 - Poll for task status using the returned task identifier.
 
 ## Phase 6: Monitoring Stack
