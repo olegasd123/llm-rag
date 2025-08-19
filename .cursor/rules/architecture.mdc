@@ -54,6 +54,7 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
   - Clients connect using `VECTOR_DB_URL` (e.g., `http://rag-vector-db:6333`).
 - **LM Studio Host**
   - Serves language models that generate responses.
+  - Runs on a local pc for development or a virtual one for production.
   - Clients connect using `LM_HOST_URL` (e.g., `http://rag-lm-host:8080`).
 - **PostgreSQL Database**
   - Persists user credentials, chat history, and preferences.
