@@ -9,7 +9,8 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
 ## Components
 - **Next.js Client**
   - Provides a ChatGPT-style interface for user prompts.
-  - Uses Prisma ORM for PostgreSQL.
+  - Prisma ORM is present, but there is no direct PostgreSQL access; all persistence is handled through the ASP.NET Core API and message queue.
+  - Prisma reads the PostgreSQL connection string from the `MAIN_DB_URL` environment variable.
   - Runs in the `rag-web-client` container.
   - Uses `AUTH_SERVICE_URL` to reach the Authentication/Authorization service.
   - Uses `API_URL` to reach the ASP.NET Core MVC Server.
