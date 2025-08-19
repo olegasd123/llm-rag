@@ -11,7 +11,7 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
   - Provides a ChatGPT-style interface for user prompts.
   - Uses Prisma ORM for PostgreSQL.
   - Runs in the `rag-web-client` container.
-  - Uses `NEXT_PUBLIC_API_URL` to reach the API server (e.g., `http://rag-api-server:8080`).
+  - Uses `AUTH_SERVICE_URL` to reach the Authentication/Authorization service.
   - Follows the guidelines in `next-dev-rules.mdc`.
 - **ASP.NET Core MVC Server**
   - Receives prompts, orchestrates retrieval and generation, and exposes REST endpoints.
@@ -25,6 +25,7 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
     - `MAIN_DB_URL` (e.g., `postgresql://postgres:postgres@rag-postgres-db:5432/app`)
     - `AUTH_SERVICE_URL` (e.g., `http://rag-auth-service:8080`)
     - `MONITORING_URL` (e.g., `http://rag-monitoring:3000`)
+  - Clients connect using `API_URL` (e.g., `http://rag-api-server:8080`).
   - Follows the guidelines in `net-dev-rules.mdc`.
 - **Message Broker**
   - Dispatches tasks between the ASP.NET Core MVC server and background workers.
