@@ -1,11 +1,11 @@
 ```mermaid
 graph TD
-    User-->Client[Client App]
-    Client-- Request JWT -->Auth[Auth Service]
+    User-->Client[Client App (Next.js)]
+    Client-- Request JWT -->Auth[Auth Service (.NET)]
     Auth-- Signed JWT -->Client
-    Client-- Profile update + JWT -->Api[Web Service]
-    Api-- Validate & write -->Postgres[PostgreSQL]
-    Api-- Update cache -->Redis[Redis Cache]
+    Client-- Profile update + JWT -->Api[Web Service (.NET)]
+    Api-- Validate & write -->Postgres[Database (PostgreSQL)]
+    Api-- Update cache -->Redis[Cache (Redis)]
     Api-- Acknowledge update -->Client
     Client-->User
 ```

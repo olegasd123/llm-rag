@@ -1,15 +1,15 @@
 ```mermaid
 graph TD
-    User-->Client[Client App]
-    Client-- Request JWT -->Auth[Auth Service]
+    User-->Client[Client App (Next.js)]
+    Client-- Request JWT -->Auth[Auth Service (.NET)]
     Auth-- Signed JWT -->Client
-    Client-- Prompt + JWT -->Api[Web Service]
-    Api-- Enqueue prompt -->Broker[RabbitMQ]
-    Broker-- Deliver task -->Worker[Background Worker]
-    Worker-- Check cache -->Redis[Redis Cache]
-    Worker-- Query vectors -->Qdrant[Qdrant Vector DB]
-    Worker-- Query user data -->Postgres[PostgreSQL]
-    Worker-- Augment prompt & send -->LM[LM Studio]
+    Client-- Prompt + JWT -->Api[Web Service (.NET)]
+    Api-- Enqueue prompt -->Broker[Queue (RabbitMQ)]
+    Broker-- Deliver task -->Worker[Background Worker (.NET)]
+    Worker-- Check cache -->Redis[Cache (Redis)]
+    Worker-- Query vectors -->Qdrant[Vector DB (Qdrant)]
+    Worker-- Query user data -->Postgres[Database (PostgreSQL)]
+    Worker-- Augment prompt & send -->LM[AI Host (LM Studio)]
     LM-- Generated answer -->Worker
     Worker-- Store answer -->Postgres
     Worker-- Cache answer -->Redis
