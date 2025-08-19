@@ -1,0 +1,56 @@
+# Project Roadmap
+
+This roadmap outlines steps to implement the Retrieval-Augmented Generation platform described in `.cursor/rules/architecture.mdc`.
+
+## Phase 1: Infrastructure Setup
+- Containerize all core services with Docker Compose for local development.
+- Provision foundational components:
+  - PostgreSQL (`rag-postgres-db`)
+  - Redis cache (`rag-data-cache`)
+  - RabbitMQ broker (`rag-message-broker`)
+  - Qdrant vector store (`rag-vector-db`)
+  - LM Studio host
+- Define shared network and environment variables:
+  - `DATA_CACHE_URL`
+  - `MESSAGE_BROKER_URL`
+  - `VECTOR_DB_URL`
+  - `LM_HOST_URL`
+  - `MAIN_DB_URL`
+  - `AUTH_SERVICE_URL`
+  - `MONITORING_URL`
+
+## Phase 2: Authentication Service
+- Implement the authentication/authorization service in the `rag-auth-service` container.
+- Provide login endpoints that verify credentials against PostgreSQL and issue JWTs.
+- Support token introspection and refresh tokens.
+
+## Phase 3: ASP.NET Core MVC Server
+- Develop the API server in the `rag-api-server` container using .NET 8.
+- Expose REST endpoints for prompt submission and result retrieval.
+- Read connection settings from environment variables and enqueue tasks to RabbitMQ via MassTransit.
+- Validate JWTs from the auth service before accepting requests.
+
+## Phase 4: Background Worker Service
+- Create a .NET worker running in the `rag-worker` container.
+- Consume jobs from RabbitMQ and orchestrate retrieval and generation:
+  - Check Redis for cached vectors and user data.
+  - Query Qdrant and PostgreSQL on cache misses.
+  - Forward augmented prompts to the LM Studio host.
+- Store responses in PostgreSQL and cache them in Redis.
+
+## Phase 5: Next.js Client
+- Build a ChatGPT-style interface in the `rag-web-client` container.
+- Authenticate via the auth service and send prompts to the API server using `API_URL`.
+- Poll for task status using the returned task identifier.
+
+## Phase 6: Monitoring Stack
+- Deploy Prometheus and Grafana in the `rag-monitoring` container.
+- Collect metrics, logs, and traces from all services via OpenTelemetry.
+- Configure alerts for system health.
+
+## Phase 7: Deployment & Scaling
+- Ensure all services emit structured logs and propagate trace IDs.
+- Use Kubernetes manifests for production to scale services independently.
+- Add load balancing for the ASP.NET Core MVC server and Next.js client.
+- Encrypt sensitive data at rest and in transit.
+
