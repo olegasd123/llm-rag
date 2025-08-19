@@ -5,7 +5,7 @@ This roadmap outlines steps to implement the Retrieval-Augmented Generation plat
 ## Phase 1: Infrastructure Setup
 - Containerize all core services with Docker Compose for local development.
 - Provision foundational components:
-  - Main Database, PostgresSQL (`rag-main-db`)
+  - Main Database, PostgreSQL (`rag-main-db`)
   - Data Cache, Redis (`rag-data-cache`)
   - Message Broker, RabbitMQ (`rag-message-broker`)
   - Vector Database, Qdrant (`rag-vector-db`)

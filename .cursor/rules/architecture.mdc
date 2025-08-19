@@ -58,7 +58,7 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
   - LM Studio runs on a local pc for development or a virtual one for production.
   - Clients connect using `AI_HOST_URL` (e.g., `http://rag-ai-host:8080`).
 - **Main Database**
-  - PostgresSQL.
+  - PostgreSQL.
   - Persists user credentials, chat history, and preferences.
   - Follows the conventions in `sql-style-guide.mdc` and runs in the `rag-main-db` container.
   - Services connect using `MAIN_DB_URL` (e.g., `postgresql://postgres:postgres@rag-main-db:5432/app`).
