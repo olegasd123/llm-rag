@@ -40,7 +40,7 @@ This roadmap outlines steps to implement the Retrieval-Augmented Generation plat
 
 ## Phase 5: Next.js Client
 - Build a ChatGPT-style interface in the `rag-web-client` container.
-- Authenticate via the auth service and send prompts to the API server using `API_URL`.
+- Authenticate via the auth service and send prompts to the API server using `AUTH_SERVICE_URL`.
 - Poll for task status using the returned task identifier.
 
 ## Phase 6: Monitoring Stack
