@@ -1,0 +1,41 @@
+# docker-compose.yml
+
+services:
+  rag-main-db:
+    image: postgres:16
+    env_file: .env
+    environment:
+      POSTGRES_USER: rag_user
+      POSTGRES_PASSWORD: rag_pass
+      POSTGRES_DB: rag
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - rag-net
+
+  rag-data-cache:
+    image: redis:7
+    networks:
+      - rag-net
+
+  rag-message-broker:
+    image: rabbitmq:3-management
+    ports:
+      - "15672:15672"          # RabbitMQ management UI
+    networks:
+      - rag-net
+
+  rag-vector-db:
+    image: qdrant/qdrant:latest
+    volumes:
+      - vector-data:/qdrant/storage
+    networks:
+      - rag-net
+
+volumes:
+  db-data:
+  vector-data:
+
+networks:
+  rag-net:
+    driver: bridge
