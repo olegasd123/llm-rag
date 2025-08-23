@@ -16,22 +16,22 @@ public class TokenService
 
     private SymmetricSecurityKey GetSigningKey() => new(Encoding.UTF8.GetBytes(_secret));
 
-    public string GenerateAccessToken(string userId, string username)
+    public string GenerateAccessToken(string userId, string email)
     {
         var claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, userId),
-            new Claim(JwtRegisteredClaimNames.UniqueName, username)
+            new Claim(JwtRegisteredClaimNames.Email, email)
         };
         return GenerateToken(claims, DateTime.UtcNow.AddMinutes(15));
     }
 
-    public string GenerateRefreshToken(string userId, string username)
+    public string GenerateRefreshToken(string userId, string email)
     {
         var claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, userId),
-            new Claim(JwtRegisteredClaimNames.UniqueName, username),
+            new Claim(JwtRegisteredClaimNames.Email, email),
             new Claim("typ", "refresh")
         };
         return GenerateToken(claims, DateTime.UtcNow.AddDays(7));

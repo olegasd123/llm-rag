@@ -27,8 +27,8 @@ public class AuthController : ControllerBase
         await using var conn = new NpgsqlConnection(connString);
         await conn.OpenAsync();
 
-        await using var cmd = new NpgsqlCommand("SELECT id, username, password_hash FROM users WHERE username = @u", conn);
-        cmd.Parameters.AddWithValue("u", request.Username);
+        await using var cmd = new NpgsqlCommand("SELECT id, email, password_hash FROM users WHERE email = @e", conn);
+        cmd.Parameters.AddWithValue("e", request.Email);
         await using var reader = await cmd.ExecuteReaderAsync();
         if (!await reader.ReadAsync())
             return Unauthorized();
@@ -38,8 +38,8 @@ public class AuthController : ControllerBase
         if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             return Unauthorized();
 
-        var access = _tokenService.GenerateAccessToken(user.Id.ToString(), user.Username);
-        var refresh = _tokenService.GenerateRefreshToken(user.Id.ToString(), user.Username);
+        var access = _tokenService.GenerateAccessToken(user.Id.ToString(), user.Email);
+        var refresh = _tokenService.GenerateRefreshToken(user.Id.ToString(), user.Email);
         return Ok(new TokenResponse(access, refresh, 900));
     }
 
@@ -55,12 +55,12 @@ public class AuthController : ControllerBase
             return Unauthorized();
 
         var userId = principal.FindFirstValue(JwtRegisteredClaimNames.Sub);
-        var username = principal.FindFirstValue(JwtRegisteredClaimNames.UniqueName) ?? principal.Identity?.Name;
-        if (userId is null || username is null)
+        var email = principal.FindFirstValue(JwtRegisteredClaimNames.Email);
+        if (userId is null || email is null)
             return Unauthorized();
 
-        var access = _tokenService.GenerateAccessToken(userId, username);
-        var refresh = _tokenService.GenerateRefreshToken(userId, username);
+        var access = _tokenService.GenerateAccessToken(userId, email);
+        var refresh = _tokenService.GenerateRefreshToken(userId, email);
         return Ok(new TokenResponse(access, refresh, 900));
     }
 
@@ -77,7 +77,7 @@ public class AuthController : ControllerBase
         {
             active,
             sub = principal.FindFirstValue(JwtRegisteredClaimNames.Sub),
-            username = principal.FindFirstValue(JwtRegisteredClaimNames.UniqueName)
+            email = principal.FindFirstValue(JwtRegisteredClaimNames.Email)
         });
     }
 }
