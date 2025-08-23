@@ -30,7 +30,7 @@ Store a custom knowledge as vector embeddings
    ```sql
    CREATE TABLE users (
        id SERIAL PRIMARY KEY,
-       username TEXT NOT NULL UNIQUE,
+       email TEXT NOT NULL UNIQUE,
        password_hash TEXT NOT NULL
    );
    ```
@@ -41,8 +41,8 @@ Store a custom knowledge as vector embeddings
    ```
 4. Insert a user (generate the password hash with your preferred BCrypt tool):
    ```sql
-   INSERT INTO users (username, password_hash)
-   VALUES ('alice', '$2b$12$...bcrypt_hash_here...');
+   INSERT INTO users (email, password_hash)
+   VALUES ('alice@example.com', '$2b$12$...bcrypt_hash_here...');
    ```
 
 ## Running
