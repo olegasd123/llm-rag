@@ -25,7 +25,7 @@ Store a custom knowledge as vector embeddings
 2. Start the database and create the `users` table:
    ```bash
    docker compose up -d rag-main-db
-   docker compose exec rag-main-db psql -U rag_user -d rag
+   docker compose exec rag-main-db psql -U rag_user -d rag -e PGPASSWORD=
    ```
    ```sql
    CREATE TABLE users (
@@ -33,6 +33,9 @@ Store a custom knowledge as vector embeddings
        email TEXT NOT NULL UNIQUE,
        password_hash TEXT NOT NULL
    );
+   ```
+   ```bash
+   \dt public.users
    ```
 3. Build and run the auth service:
    ```bash
