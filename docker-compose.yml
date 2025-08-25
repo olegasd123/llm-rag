@@ -32,6 +32,19 @@ services:
     networks:
       - rag-net
 
+  rag-auth-service:
+    build: ./rag-auth-service
+    env_file: .env
+    environment:
+      - MAIN_DB_URL=${MAIN_DB_URL}
+      - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      - rag-main-db
+    ports:
+      - "5001:8080"
+    networks:
+      - rag-net
+
 volumes:
   db-data:
   vector-data:
