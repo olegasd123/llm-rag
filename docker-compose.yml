@@ -45,6 +45,21 @@ services:
     networks:
       - rag-net
 
+  rag-web-service:
+    build: ./rag-web-service
+    env_file: .env
+    environment:
+      - MESSAGE_BROKER_URL=${MESSAGE_BROKER_URL}
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      - rag-message-broker
+      - rag-auth-service
+    ports:
+      - "5002:8080"
+    networks:
+      - rag-net
+
 volumes:
   db-data:
   vector-data:
