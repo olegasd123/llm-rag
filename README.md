@@ -25,7 +25,7 @@ Store a custom knowledge as vector embeddings
 2. Start the database and create the `users` table:
    ```bash
    docker compose up -d rag-main-db
-   docker compose exec rag-main-db psql -U rag_user -d rag -e PGPASSWORD=
+   docker compose exec rag-main-db psql -U rag_user -d rag -e PGPASSWORD=<you can take it from .env>
    ```
    ```sql
    CREATE TABLE users (
@@ -37,15 +37,15 @@ Store a custom knowledge as vector embeddings
    ```bash
    \dt public.users
    ```
-3. Build and run the auth service:
+3. Insert a user user@example.com with password 'user123', or generate the password hash with your preferred BCrypt tool, then run:
+   ```sql
+   INSERT INTO users (email, password_hash)
+   VALUES ('user@example.com', '$2a$12$XUaL3gaf3JePnNPZf20vf.oWqSBcLnvB.HQgPb1mgu4I2rkbKN6.K');
+   ```
+4. Build and run the auth service:
    ```bash
    docker compose build rag-auth-service
    docker compose up -d rag-auth-service
-   ```
-4. Insert a user (generate the password hash with your preferred BCrypt tool):
-   ```sql
-   INSERT INTO users (email, password_hash)
-   VALUES ('alice@example.com', '$2b$12$...bcrypt_hash_here...');
    ```
 
 ## Running
