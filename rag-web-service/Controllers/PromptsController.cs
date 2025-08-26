@@ -20,6 +20,7 @@ public class PromptsController : ControllerBase
 
     [HttpPost]
     [Authorize]
+    [SwaggerOperation(Summary = "Submit a prompt", Description = "Queues a prompt for processing and returns a task identifier.")]
     public async Task<IActionResult> SubmitPrompt([FromBody] PromptRequest request)
     {
         var taskId = Guid.NewGuid().ToString();
@@ -29,6 +30,7 @@ public class PromptsController : ControllerBase
 
     [HttpGet("{id}")]
     [Authorize]
+    [SwaggerOperation(Summary = "Get prompt result", Description = "Retrieves the generated result for the specified task id.")]
     public IActionResult GetResult(string id)
     {
         // Placeholder for result retrieval logic
