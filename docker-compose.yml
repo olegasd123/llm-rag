@@ -60,6 +60,23 @@ services:
     networks:
       - rag-net
 
+  rag-background-worker:
+    build: ./rag-background-worker
+    env_file: .env
+    environment:
+      - MESSAGE_BROKER_URL=${MESSAGE_BROKER_URL}
+      - DATA_CACHE_URL=${DATA_CACHE_URL}
+      - VECTOR_DB_URL=${VECTOR_DB_URL}
+      - MAIN_DB_URL=${MAIN_DB_URL}
+      - AI_HOST_URL=${AI_HOST_URL}
+    depends_on:
+      - rag-message-broker
+      - rag-data-cache
+      - rag-vector-db
+      - rag-main-db
+    networks:
+      - rag-net
+
 volumes:
   db-data:
   vector-data:
