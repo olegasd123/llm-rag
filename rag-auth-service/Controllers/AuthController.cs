@@ -4,11 +4,13 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Npgsql;
 using RagAuthService.Models;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace RagAuthService.Controllers;
 
 [ApiController]
 [Route("auth")]
+[SwaggerTag("Provides authentication endpoints including login, token refresh, and token introspection.")]
 public class AuthController : ControllerBase
 {
     private readonly IConfiguration _configuration;

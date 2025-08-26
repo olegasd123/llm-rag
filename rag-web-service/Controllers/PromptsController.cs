@@ -2,11 +2,13 @@ using MassTransit;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RagWebService.Models;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace RagWebService.Controllers;
 
 [ApiController]
 [Route("prompts")]
+[SwaggerTag("Handles submission of prompts and retrieval of generated results.")]
 public class PromptsController : ControllerBase
 {
     private readonly IPublishEndpoint _publisher;
