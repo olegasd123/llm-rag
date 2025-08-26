@@ -48,6 +48,15 @@ Store a custom knowledge as vector embeddings
    docker compose up -d rag-auth-service
    ```
 
+## Running Dev
+
+```bash
+export ASPNETCORE_ENVIRONMENT=Development
+export JWT_SECRET="<some strong secret>"
+export MESSAGE_BROKER_URL="amqp://user:pass@host:port"
+dotnet run
+```
+
 ## Running
 Set the required environment variables in `.env` and start the stack:
 
