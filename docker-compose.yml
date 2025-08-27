@@ -52,6 +52,8 @@ services:
       - MESSAGE_BROKER_URL=${MESSAGE_BROKER_URL}
       - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
       - JWT_SECRET=${JWT_SECRET}
+      - DATA_CACHE_URL=${DATA_CACHE_URL}
+      - MAIN_DB_URL=${MAIN_DB_URL}
     depends_on:
       - rag-message-broker
       - rag-auth-service

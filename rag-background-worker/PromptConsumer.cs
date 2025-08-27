@@ -1,6 +1,7 @@
 using MassTransit;
 using Npgsql;
 using StackExchange.Redis;
+using System.Net.Http.Json;
 
 namespace RagBackgroundWorker;
 
@@ -23,8 +24,71 @@ public class PromptConsumer : IConsumer<PromptMessage>
         var prompt = context.Message.Prompt;
 
         Console.WriteLine($"Processing task {taskId} with prompt '{prompt}'");
+        var db = _cache.GetDatabase();
 
-        // TODO: Check Redis/Qdrant/PostgreSQL, forward to AI host, and store responses
-        await Task.CompletedTask;
+        // 1. Check if we already have a cached response for this task
+        var responseKey = $"response:{taskId}";
+        var cachedResponse = await db.StringGetAsync(responseKey);
+        if (!cachedResponse.IsNullOrEmpty)
+        {
+            Console.WriteLine($"Cached response found for task {taskId}");
+            return;
+        }
+
+        // 2. Retrieve vector context, using Redis cache when possible
+        var vectorKey = $"vector:{prompt}";
+        string vectorContext;
+        var cachedVector = await db.StringGetAsync(vectorKey);
+        if (!cachedVector.IsNullOrEmpty)
+        {
+            vectorContext = cachedVector!
+                .ToString();
+        }
+        else
+        {
+            var vectorClient = _httpClientFactory.CreateClient("vectorDb");
+            var vectorResp = await vectorClient.GetAsync($"/search?text={Uri.EscapeDataString(prompt)}");
+            vectorResp.EnsureSuccessStatusCode();
+            vectorContext = await vectorResp.Content.ReadAsStringAsync();
+            await db.StringSetAsync(vectorKey, vectorContext);
+        }
+
+        // 3. Retrieve additional user data from PostgreSQL (cached in Redis)
+        var userKey = $"user:{taskId}";
+        string userContext;
+        var cachedUser = await db.StringGetAsync(userKey);
+        if (!cachedUser.IsNullOrEmpty)
+        {
+            userContext = cachedUser!;
+        }
+        else
+        {
+            await using var userConn = new NpgsqlConnection(_db.ConnectionString);
+            await userConn.OpenAsync();
+            using var cmd = new NpgsqlCommand("SELECT data FROM user_data LIMIT 1", userConn);
+            var result = await cmd.ExecuteScalarAsync();
+            userContext = result?.ToString() ?? string.Empty;
+            await db.StringSetAsync(userKey, userContext);
+        }
+
+        // 4. Forward augmented prompt to the AI host
+        var augmentedPrompt = $"{prompt}\n{vectorContext}\n{userContext}";
+        var aiClient = _httpClientFactory.CreateClient("aiHost");
+        var aiResp = await aiClient.PostAsJsonAsync("/generate", new { prompt = augmentedPrompt });
+        aiResp.EnsureSuccessStatusCode();
+        var generated = await aiResp.Content.ReadAsStringAsync();
+
+        // 5. Store response in PostgreSQL and cache
+        await using (var conn = new NpgsqlConnection(_db.ConnectionString))
+        {
+            await conn.OpenAsync();
+            using var insert = new NpgsqlCommand("INSERT INTO responses(task_id, prompt, response) VALUES (@taskId, @prompt, @response)", conn);
+            insert.Parameters.AddWithValue("taskId", taskId);
+            insert.Parameters.AddWithValue("prompt", prompt);
+            insert.Parameters.AddWithValue("response", generated);
+            await insert.ExecuteNonQueryAsync();
+        }
+
+        await db.StringSetAsync(responseKey, generated);
     }
 }
