@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RagWebService.Models;
 using Swashbuckle.AspNetCore.Annotations;
+using StackExchange.Redis;
+using Npgsql;
 
 namespace RagWebService.Controllers;
 
@@ -12,10 +14,14 @@ namespace RagWebService.Controllers;
 public class PromptsController : ControllerBase
 {
     private readonly IPublishEndpoint _publisher;
+    private readonly IConnectionMultiplexer _cache;
+    private readonly NpgsqlConnection _db;
 
-    public PromptsController(IPublishEndpoint publisher)
+    public PromptsController(IPublishEndpoint publisher, IConnectionMultiplexer cache, NpgsqlConnection db)
     {
         _publisher = publisher;
+        _cache = cache;
+        _db = db;
     }
 
     [HttpPost]
@@ -31,9 +37,28 @@ public class PromptsController : ControllerBase
     [HttpGet("{id}")]
     [Authorize]
     [SwaggerOperation(Summary = "Get prompt result", Description = "Retrieves the generated result for the specified task id.")]
-    public IActionResult GetResult(string id)
+    public async Task<IActionResult> GetResult(string id)
     {
-        // Placeholder for result retrieval logic
-        return NotFound();
+        var cacheDb = _cache.GetDatabase();
+        var cacheKey = $"response:{id}";
+        var cached = await cacheDb.StringGetAsync(cacheKey);
+        if (!cached.IsNullOrEmpty)
+        {
+            return Ok(new { response = cached.ToString() });
+        }
+
+        await using var conn = new NpgsqlConnection(_db.ConnectionString);
+        await conn.OpenAsync();
+        using var cmd = new NpgsqlCommand("SELECT response FROM responses WHERE task_id = @id", conn);
+        cmd.Parameters.AddWithValue("id", id);
+        var result = await cmd.ExecuteScalarAsync();
+        if (result == null)
+        {
+            return NotFound();
+        }
+
+        var response = result.ToString() ?? string.Empty;
+        await cacheDb.StringSetAsync(cacheKey, response);
+        return Ok(new { response });
     }
 }
