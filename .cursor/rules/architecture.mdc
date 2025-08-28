@@ -9,10 +9,11 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
 ## Components
 - **Client App**
   - Provides a ChatGPT-style interface for user prompts.
+  - Implemented in TypeScript, Next.js App Router, Tailwind, headlessui, heroicons.
+  - Follows the guidelines in `next-dev-rules.mdc`.
   - Runs in the `rag-client-app` container.
   - Uses `AUTH_SERVICE_URL` to reach the Auth Service.
   - Uses `WEB_SERVICE_URL` to reach the Web Service.
-  - Follows the guidelines in `next-dev-rules.mdc`.
 - **Web Service**
   - Receives prompts, orchestrates retrieval and generation, and exposes REST endpoints.
   - Implemented in C# as a ASP.NET Core Web API using .NET 8.
