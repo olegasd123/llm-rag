@@ -79,6 +79,24 @@ services:
     networks:
       - rag-net
 
+  rag-client-app:
+    build:
+      context: ./rag-client-app
+      args:
+        AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
+        WEB_SERVICE_URL: ${WEB_SERVICE_URL}
+    env_file: .env
+    environment:
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+      - WEB_SERVICE_URL=${WEB_SERVICE_URL}
+    depends_on:
+      - rag-auth-service
+      - rag-web-service
+    ports:
+      - "3000:3000"
+    networks:
+      - rag-net
+
 volumes:
   db-data:
   vector-data:

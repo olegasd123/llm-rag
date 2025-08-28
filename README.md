@@ -21,6 +21,9 @@ docker compose exec rag-main-db ping rag-data-cache
 ## Services
 
 - **rag-auth-service**: .NET 8 service providing JWT-based authentication.
+- **rag-web-service**: .NET 8 API for prompt submission and result retrieval.
+- **rag-background-worker**: .NET 8 worker processing queued prompts.
+- **rag-client-app**: Next.js interface for authentication and chat.
 
 ### Setup
 
