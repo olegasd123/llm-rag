@@ -94,7 +94,7 @@ services:
       - rag-auth-service
       - rag-web-service
     ports:
-      - "3000:3000"
+      - "3007:3000"
     networks:
       - rag-net
 
