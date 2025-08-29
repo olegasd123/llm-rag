@@ -20,7 +20,7 @@ export default function LoginPage() {
     });
     if (res.ok) {
       const data = await res.json();
-      localStorage.setItem('token', data.access);
+      localStorage.setItem('token', data.accessToken);
       router.push('/chat');
     }
     setIsLoading(false);
