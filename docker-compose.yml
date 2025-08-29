@@ -38,6 +38,7 @@ services:
     environment:
       - MAIN_DB_URL=${MAIN_DB_URL}
       - JWT_SECRET=${JWT_SECRET}
+      - CORS_ORIGIN=${CORS_ORIGIN}
     depends_on:
       - rag-main-db
     ports:
