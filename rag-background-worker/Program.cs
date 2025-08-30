@@ -16,7 +16,9 @@ IHost host = Microsoft.Extensions.Hosting.Host.CreateDefaultBuilder(args)
         var mainDbUrl = configuration["MAIN_DB_URL"] ?? throw new InvalidOperationException("MAIN_DB_URL not configured");
         var aiHostUrl = configuration["AI_HOST_URL"] ?? throw new InvalidOperationException("AI_HOST_URL not configured");
 
-        services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(cacheUrl));
+        var redisOptions = ConfigurationOptions.Parse(cacheUrl);
+        redisOptions.AbortOnConnectFail = false; // keep retrying until Redis is ready
+        services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisOptions));
         services.AddSingleton(_ => new NpgsqlConnection(mainDbUrl));
         services.AddHttpClient("vectorDb", c => { c.BaseAddress = new Uri(vectorDbUrl); });
         services.AddHttpClient("aiHost", c => { c.BaseAddress = new Uri(aiHostUrl); });

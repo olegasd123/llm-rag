@@ -83,7 +83,7 @@ docker compose exec rag-main-db ping rag-data-cache
 ```bash
 export ASPNETCORE_ENVIRONMENT=Development
 export JWT_SECRET="<some strong secret>"
-export MESSAGE_BROKER_URL="amqp://user:pass@host:port"
+export MESSAGE_BROKER_URL="amqp://user:pass@host:5672"  # Use AMQP 5672 (not 15672)
 dotnet run
 ```
 
@@ -94,3 +94,13 @@ Set the required environment variables in `.env` and start the stack:
 ```
 docker-compose up --build
 ```
+
+### Troubleshooting
+
+- RabbitMQ connection failed (MassTransit shows `rabbitmq://...:15672/`):
+  - 15672 is the management UI port. Set `MESSAGE_BROKER_URL` to the AMQP port 5672, e.g. `amqp://guest:guest@rag-message-broker:5672`.
+  - No host port mapping for 5672 is required when services run inside Docker; they reach `rag-message-broker:5672` on the internal network.
+  - The management UI is available on `http://localhost:15672` (guest/guest by default).
+- Worker faulted on prompt with 404 from vector DB or AI host:
+  - Qdrant doesn't serve `/search`; current code now falls back if unavailable. If you want real vector search, set up a collection and call Qdrant's `/collections/{name}/points/search`.
+  - If your AI host runs on your laptop (not in Docker), set `AI_HOST_URL` to `http://host.docker.internal:1234` so containers can reach it. `http://localhost:1234` resolves inside the container and will fail.

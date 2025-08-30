@@ -29,8 +29,8 @@ public class PromptsController : ControllerBase
     [SwaggerOperation(Summary = "Submit a prompt", Description = "Queues a prompt for processing and returns a task identifier.")]
     public async Task<IActionResult> SubmitPrompt([FromBody] PromptRequest request)
     {
-        var taskId = Guid.NewGuid().ToString();
-        await _publisher.Publish(new { TaskId = taskId, Prompt = request.Prompt });
+        var taskId = Guid.NewGuid();
+        await _publisher.Publish(new RagBackgroundWorker.PromptMessage(taskId, request.Prompt));
         return Accepted(new { taskId });
     }
 
@@ -50,7 +50,11 @@ public class PromptsController : ControllerBase
         await using var conn = new NpgsqlConnection(_db.ConnectionString);
         await conn.OpenAsync();
         using var cmd = new NpgsqlCommand("SELECT response FROM responses WHERE task_id = @id", conn);
-        cmd.Parameters.AddWithValue("id", id);
+        if (!Guid.TryParse(id, out var taskGuid))
+        {
+            return BadRequest(new { error = "Invalid task id format" });
+        }
+        cmd.Parameters.AddWithValue("id", taskGuid);
         var result = await cmd.ExecuteScalarAsync();
         if (result == null)
         {

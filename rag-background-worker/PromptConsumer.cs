@@ -47,10 +47,26 @@ public class PromptConsumer : IConsumer<PromptMessage>
         else
         {
             var vectorClient = _httpClientFactory.CreateClient("vectorDb");
-            var vectorResp = await vectorClient.GetAsync($"/search?text={Uri.EscapeDataString(prompt)}");
-            vectorResp.EnsureSuccessStatusCode();
-            vectorContext = await vectorResp.Content.ReadAsStringAsync();
-            await db.StringSetAsync(vectorKey, vectorContext);
+            try
+            {
+                // Placeholder endpoint; if unavailable, continue without vector context
+                var vectorResp = await vectorClient.GetAsync($"/search?text={Uri.EscapeDataString(prompt)}");
+                if (vectorResp.IsSuccessStatusCode)
+                {
+                    vectorContext = await vectorResp.Content.ReadAsStringAsync();
+                    await db.StringSetAsync(vectorKey, vectorContext);
+                }
+                else
+                {
+                    Console.WriteLine($"Vector DB returned {vectorResp.StatusCode}; proceeding without vector context.");
+                    vectorContext = string.Empty;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Vector DB request failed: {ex.Message}");
+                vectorContext = string.Empty;
+            }
         }
 
         // 3. Retrieve additional user data from PostgreSQL (cached in Redis)
@@ -74,9 +90,25 @@ public class PromptConsumer : IConsumer<PromptMessage>
         // 4. Forward augmented prompt to the AI host
         var augmentedPrompt = $"{prompt}\n{vectorContext}\n{userContext}";
         var aiClient = _httpClientFactory.CreateClient("aiHost");
-        var aiResp = await aiClient.PostAsJsonAsync("/generate", new { prompt = augmentedPrompt });
-        aiResp.EnsureSuccessStatusCode();
-        var generated = await aiResp.Content.ReadAsStringAsync();
+        string generated;
+        try
+        {
+            var aiResp = await aiClient.PostAsJsonAsync("/generate", new { prompt = augmentedPrompt });
+            if (aiResp.IsSuccessStatusCode)
+            {
+                generated = await aiResp.Content.ReadAsStringAsync();
+            }
+            else
+            {
+                Console.WriteLine($"AI host returned {aiResp.StatusCode}; using fallback response.");
+                generated = $"Echo: {prompt}";
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"AI host request failed: {ex.Message}; using fallback response.");
+            generated = $"Echo: {prompt}";
+        }
 
         // 5. Store response in PostgreSQL and cache
         await using (var conn = new NpgsqlConnection(_db.ConnectionString))

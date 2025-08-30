@@ -56,7 +56,9 @@ builder.Services.AddMassTransit(x =>
 
 builder.Services.AddAuthorization();
 
-builder.Services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(cacheUrl));
+var redisOptions = ConfigurationOptions.Parse(cacheUrl);
+redisOptions.AbortOnConnectFail = false; // keep retrying until Redis is ready
+builder.Services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisOptions));
 builder.Services.AddSingleton(_ => new NpgsqlConnection(mainDbUrl));
 
 var app = builder.Build();
