@@ -1,4 +1,6 @@
 using System.Text;
+using System.IO;
+using Microsoft.AspNetCore.DataProtection;
 using MassTransit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -22,6 +24,11 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.EnableAnnotations();
 });
+
+// Persist DataProtection keys to a mounted volume to avoid ephemeral container storage
+builder.Services.AddDataProtection()
+    .SetApplicationName("rag")
+    .PersistKeysToFileSystem(new DirectoryInfo("/keys"));
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
