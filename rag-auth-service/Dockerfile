@@ -12,5 +12,4 @@ RUN dotnet publish "RagAuthService.csproj" -c Release -o /app/publish /p:UseAppH
 FROM base AS final
 WORKDIR /app
 COPY --from=build /app/publish .
-ENV ASPNETCORE_URLS=http://+:8080
 ENTRYPOINT ["dotnet", "RagAuthService.dll"]
