@@ -24,11 +24,11 @@ public class PromptConsumer : IConsumer<PromptMessage>
         var prompt = context.Message.Prompt;
 
         Console.WriteLine($"Processing task {taskId} with prompt '{prompt}'");
-        var db = _cache.GetDatabase();
+        var cacheDb = _cache.GetDatabase();
 
         // 1. Check if we already have a cached response for this task
         var responseKey = $"response:{taskId}";
-        var cachedResponse = await db.StringGetAsync(responseKey);
+        var cachedResponse = await cacheDb.StringGetAsync(responseKey);
         if (!cachedResponse.IsNullOrEmpty)
         {
             Console.WriteLine($"Cached response found for task {taskId}");
@@ -38,7 +38,7 @@ public class PromptConsumer : IConsumer<PromptMessage>
         // 2. Retrieve vector context, using Redis cache when possible
         var vectorKey = $"vector:{prompt}";
         string vectorContext;
-        var cachedVector = await db.StringGetAsync(vectorKey);
+        var cachedVector = await cacheDb.StringGetAsync(vectorKey);
         if (!cachedVector.IsNullOrEmpty)
         {
             vectorContext = cachedVector!
@@ -54,7 +54,7 @@ public class PromptConsumer : IConsumer<PromptMessage>
                 if (vectorResp.IsSuccessStatusCode)
                 {
                     vectorContext = await vectorResp.Content.ReadAsStringAsync();
-                    await db.StringSetAsync(vectorKey, vectorContext);
+                    await cacheDb.StringSetAsync(vectorKey, vectorContext);
                 }
                 else
                 {
@@ -72,7 +72,7 @@ public class PromptConsumer : IConsumer<PromptMessage>
         // 3. Retrieve additional user data from PostgreSQL (cached in Redis)
         var userKey = $"user:{taskId}";
         string userContext;
-        var cachedUser = await db.StringGetAsync(userKey);
+        var cachedUser = await cacheDb.StringGetAsync(userKey);
         if (!cachedUser.IsNullOrEmpty)
         {
             userContext = cachedUser!;
@@ -84,7 +84,7 @@ public class PromptConsumer : IConsumer<PromptMessage>
             using var cmd = new NpgsqlCommand("SELECT data FROM user_data LIMIT 1", userConn);
             var result = await cmd.ExecuteScalarAsync();
             userContext = result?.ToString() ?? string.Empty;
-            await db.StringSetAsync(userKey, userContext);
+            await cacheDb.StringSetAsync(userKey, userContext);
         }
 
         // 4. Forward augmented prompt to the AI host
@@ -121,6 +121,6 @@ public class PromptConsumer : IConsumer<PromptMessage>
             await insert.ExecuteNonQueryAsync();
         }
 
-        await db.StringSetAsync(responseKey, generated);
+        await cacheDb.StringSetAsync(responseKey, generated);
     }
 }
