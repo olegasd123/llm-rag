@@ -26,6 +26,8 @@ public class AuthController : ControllerBase
     [SwaggerOperation(Summary = "Authenticate user", Description = "Verifies credentials and returns access and refresh tokens.")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
+        Console.WriteLine($"Login attempt for {request.Email}");
+
         var connString = _configuration["MAIN_DB_URL"]!;
         await using var conn = new NpgsqlConnection(connString);
         await conn.OpenAsync();
@@ -50,6 +52,8 @@ public class AuthController : ControllerBase
     [SwaggerOperation(Summary = "Refresh tokens", Description = "Generates new access and refresh tokens using a valid refresh token.")]
     public IActionResult Refresh([FromBody] RefreshRequest request)
     {
+        Console.WriteLine($"Token refresh attempt");
+
         var principal = _tokenService.ValidateToken(request.RefreshToken);
         if (principal == null)
             return Unauthorized();
@@ -72,6 +76,8 @@ public class AuthController : ControllerBase
     [SwaggerOperation(Summary = "Introspect token", Description = "Validates a token and returns its activity and claims.")]
     public IActionResult Introspect([FromBody] IntrospectRequest request)
     {
+        Console.WriteLine($"Token introspection attempt");
+
         var principal = _tokenService.ValidateToken(request.Token, validateLifetime: false);
         if (principal == null)
             return Ok(new { active = false });
