@@ -1,0 +1,125 @@
+# docker-compose.yml
+
+services:
+  rag-main-db:
+    image: postgres:16
+    env_file: .env
+    environment:
+      POSTGRES_USER: rag_user
+      POSTGRES_PASSWORD: rag_pass
+      POSTGRES_DB: rag
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - rag-net
+
+  rag-data-cache:
+    image: redis:7
+    networks:
+      - rag-net
+
+  rag-message-broker:
+    image: rabbitmq:3-management
+    environment:
+      RABBITMQ_DEFAULT_USER: rag_user
+      RABBITMQ_DEFAULT_PASS: rag_pass
+    ports:
+      - "15672:15672"          # RabbitMQ management UI
+    # healthcheck:
+    #   test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+    #   interval: 5s
+    #   timeout: 10s
+    #   retries: 5
+    #   start_period: 10s
+    networks:
+      - rag-net
+
+  rag-vector-db:
+    image: qdrant/qdrant:latest
+    volumes:
+      - vector-data:/qdrant/storage
+    networks:
+      - rag-net
+
+  rag-auth-service:
+    build: ./rag-auth-service
+    env_file: .env
+    environment:
+      - MAIN_DB_URL=${MAIN_DB_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - CORS_ORIGIN=${CORS_ORIGIN}
+    depends_on:
+      - rag-main-db
+    ports:
+      - "5001:8080"
+    volumes:
+      - dp-keys-auth:/keys
+    networks:
+      - rag-net
+
+  rag-web-service:
+    build: ./rag-web-service
+    env_file: .env
+    environment:
+      - MESSAGE_BROKER_URL=${MESSAGE_BROKER_URL}
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - DATA_CACHE_URL=${DATA_CACHE_URL}
+      - MAIN_DB_URL=${MAIN_DB_URL}
+    depends_on:
+      - rag-message-broker
+      - rag-data-cache
+      - rag-auth-service
+    ports:
+      - "5002:8080"
+    volumes:
+      - dp-keys-web:/keys
+    networks:
+      - rag-net
+
+  rag-background-worker:
+    build: ./rag-background-worker
+    env_file: .env
+    environment:
+      - MESSAGE_BROKER_URL=${MESSAGE_BROKER_URL}
+      - DATA_CACHE_URL=${DATA_CACHE_URL}
+      - VECTOR_DB_URL=${VECTOR_DB_URL}
+      - MAIN_DB_URL=${MAIN_DB_URL}
+      - AI_HOST_URL=${AI_HOST_URL}
+      - AI_HOST_API_KEY=${AI_HOST_API_KEY}
+      - AI_MODEL=${AI_MODEL}
+    depends_on:
+      - rag-message-broker
+      - rag-data-cache
+      - rag-vector-db
+      - rag-main-db
+    networks:
+      - rag-net
+
+  rag-client-app:
+    build:
+      context: ./rag-client-app
+      args:
+        AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
+        WEB_SERVICE_URL: ${WEB_SERVICE_URL}
+    env_file: .env
+    environment:
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+      - WEB_SERVICE_URL=${WEB_SERVICE_URL}
+    depends_on:
+      - rag-auth-service
+      - rag-web-service
+    ports:
+      - "3000:3000"
+    networks:
+      - rag-net
+
+volumes:
+  db-data:
+  vector-data:
+  dp-keys-auth:
+  dp-keys-web:
+
+networks:
+  rag-net:
+    driver: bridge

@@ -1,0 +1,8 @@
+bin/
+obj/
+Dockerfile
+*.user
+*.rsproj
+*.vcxproj
+*.suo
+*.swp

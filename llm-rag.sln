@@ -1,0 +1,36 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RagWebService", "rag-web-service\RagWebService.csproj", "{F36491C8-925D-CB3D-7E82-633B10949EE9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RagBackgroundWorker", "rag-background-worker\RagBackgroundWorker.csproj", "{62724BCB-900E-88B7-C159-A07E8801190C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RagAuthService", "rag-auth-service\RagAuthService.csproj", "{993CD8D7-27BC-DDDA-DFA0-AEF6F54AFD6B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F36491C8-925D-CB3D-7E82-633B10949EE9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F36491C8-925D-CB3D-7E82-633B10949EE9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F36491C8-925D-CB3D-7E82-633B10949EE9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F36491C8-925D-CB3D-7E82-633B10949EE9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{62724BCB-900E-88B7-C159-A07E8801190C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{62724BCB-900E-88B7-C159-A07E8801190C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{62724BCB-900E-88B7-C159-A07E8801190C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{62724BCB-900E-88B7-C159-A07E8801190C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{993CD8D7-27BC-DDDA-DFA0-AEF6F54AFD6B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{993CD8D7-27BC-DDDA-DFA0-AEF6F54AFD6B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{993CD8D7-27BC-DDDA-DFA0-AEF6F54AFD6B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{993CD8D7-27BC-DDDA-DFA0-AEF6F54AFD6B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3616835E-E33C-4033-B8AC-67480F25BCD8}
+	EndGlobalSection
+EndGlobal
