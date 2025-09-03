@@ -2,6 +2,7 @@ using MassTransit;
 using Npgsql;
 using StackExchange.Redis;
 using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace RagBackgroundWorker;
 
@@ -10,12 +11,14 @@ public class PromptConsumer : IConsumer<PromptMessage>
     private readonly IConnectionMultiplexer _cache;
     private readonly NpgsqlConnection _db;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IConfiguration _configuration;
 
-    public PromptConsumer(IConnectionMultiplexer cache, NpgsqlConnection db, IHttpClientFactory httpClientFactory)
+    public PromptConsumer(IConnectionMultiplexer cache, NpgsqlConnection db, IHttpClientFactory httpClientFactory, IConfiguration configuration)
     {
         _cache = cache;
         _db = db;
         _httpClientFactory = httpClientFactory;
+        _configuration = configuration;
     }
 
     public async Task Consume(ConsumeContext<PromptMessage> context)
@@ -24,11 +27,11 @@ public class PromptConsumer : IConsumer<PromptMessage>
         var prompt = context.Message.Prompt;
 
         Console.WriteLine($"Processing task {taskId} with prompt '{prompt}'");
-        var db = _cache.GetDatabase();
+        var cacheDb = _cache.GetDatabase();
 
         // 1. Check if we already have a cached response for this task
         var responseKey = $"response:{taskId}";
-        var cachedResponse = await db.StringGetAsync(responseKey);
+        var cachedResponse = await cacheDb.StringGetAsync(responseKey);
         if (!cachedResponse.IsNullOrEmpty)
         {
             Console.WriteLine($"Cached response found for task {taskId}");
@@ -38,7 +41,7 @@ public class PromptConsumer : IConsumer<PromptMessage>
         // 2. Retrieve vector context, using Redis cache when possible
         var vectorKey = $"vector:{prompt}";
         string vectorContext;
-        var cachedVector = await db.StringGetAsync(vectorKey);
+        var cachedVector = await cacheDb.StringGetAsync(vectorKey);
         if (!cachedVector.IsNullOrEmpty)
         {
             vectorContext = cachedVector!
@@ -54,7 +57,7 @@ public class PromptConsumer : IConsumer<PromptMessage>
                 if (vectorResp.IsSuccessStatusCode)
                 {
                     vectorContext = await vectorResp.Content.ReadAsStringAsync();
-                    await db.StringSetAsync(vectorKey, vectorContext);
+                    await cacheDb.StringSetAsync(vectorKey, vectorContext);
                 }
                 else
                 {
@@ -72,7 +75,7 @@ public class PromptConsumer : IConsumer<PromptMessage>
         // 3. Retrieve additional user data from PostgreSQL (cached in Redis)
         var userKey = $"user:{taskId}";
         string userContext;
-        var cachedUser = await db.StringGetAsync(userKey);
+        var cachedUser = await cacheDb.StringGetAsync(userKey);
         if (!cachedUser.IsNullOrEmpty)
         {
             userContext = cachedUser!;
@@ -84,7 +87,7 @@ public class PromptConsumer : IConsumer<PromptMessage>
             using var cmd = new NpgsqlCommand("SELECT data FROM user_data LIMIT 1", userConn);
             var result = await cmd.ExecuteScalarAsync();
             userContext = result?.ToString() ?? string.Empty;
-            await db.StringSetAsync(userKey, userContext);
+            await cacheDb.StringSetAsync(userKey, userContext);
         }
 
         // 4. Forward augmented prompt to the AI host
@@ -93,10 +96,43 @@ public class PromptConsumer : IConsumer<PromptMessage>
         string generated;
         try
         {
-            var aiResp = await aiClient.PostAsJsonAsync("/generate", new { prompt = augmentedPrompt });
+            var model = _configuration["AI_MODEL"] ?? "lmstudio";
+            var payload = new
+            {
+                model,
+                prompt = augmentedPrompt,
+                temperature = 0.2,
+                max_tokens = 512
+            };
+
+            var aiResp = await aiClient.PostAsJsonAsync("/v1/completions", payload);
             if (aiResp.IsSuccessStatusCode)
             {
-                generated = await aiResp.Content.ReadAsStringAsync();
+                using var stream = await aiResp.Content.ReadAsStreamAsync();
+                using var doc = await JsonDocument.ParseAsync(stream);
+                try
+                {
+                    var choices = doc.RootElement.GetProperty("choices");
+                    if (choices.GetArrayLength() > 0)
+                    {
+                        generated = choices[0].GetProperty("text").GetString() ?? string.Empty;
+                        if (string.IsNullOrWhiteSpace(generated))
+                        {
+                            Console.WriteLine("AI host returned empty text; using fallback response.");
+                            generated = $"Echo: {prompt}";
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("AI host returned no choices; using fallback response.");
+                        generated = $"Echo: {prompt}";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to parse AI response: {ex.Message}; using fallback response.");
+                    generated = $"Echo: {prompt}";
+                }
             }
             else
             {
@@ -121,6 +157,6 @@ public class PromptConsumer : IConsumer<PromptMessage>
             await insert.ExecuteNonQueryAsync();
         }
 
-        await db.StringSetAsync(responseKey, generated);
+        await cacheDb.StringSetAsync(responseKey, generated);
     }
 }

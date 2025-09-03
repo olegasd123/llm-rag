@@ -20,8 +20,17 @@ services:
 
   rag-message-broker:
     image: rabbitmq:3-management
+    environment:
+      RABBITMQ_DEFAULT_USER: rag_user
+      RABBITMQ_DEFAULT_PASS: rag_pass
     ports:
       - "15672:15672"          # RabbitMQ management UI
+    # healthcheck:
+    #   test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+    #   interval: 5s
+    #   timeout: 10s
+    #   retries: 5
+    #   start_period: 10s
     networks:
       - rag-net
 
@@ -77,6 +86,8 @@ services:
       - VECTOR_DB_URL=${VECTOR_DB_URL}
       - MAIN_DB_URL=${MAIN_DB_URL}
       - AI_HOST_URL=${AI_HOST_URL}
+      - AI_HOST_API_KEY=${AI_HOST_API_KEY}
+      - AI_MODEL=${AI_MODEL}
     depends_on:
       - rag-message-broker
       - rag-data-cache
