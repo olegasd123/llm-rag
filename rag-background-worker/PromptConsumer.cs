@@ -2,6 +2,7 @@ using MassTransit;
 using Npgsql;
 using StackExchange.Redis;
 using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace RagBackgroundWorker;
 
@@ -10,12 +11,14 @@ public class PromptConsumer : IConsumer<PromptMessage>
     private readonly IConnectionMultiplexer _cache;
     private readonly NpgsqlConnection _db;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IConfiguration _configuration;
 
-    public PromptConsumer(IConnectionMultiplexer cache, NpgsqlConnection db, IHttpClientFactory httpClientFactory)
+    public PromptConsumer(IConnectionMultiplexer cache, NpgsqlConnection db, IHttpClientFactory httpClientFactory, IConfiguration configuration)
     {
         _cache = cache;
         _db = db;
         _httpClientFactory = httpClientFactory;
+        _configuration = configuration;
     }
 
     public async Task Consume(ConsumeContext<PromptMessage> context)
@@ -93,10 +96,43 @@ public class PromptConsumer : IConsumer<PromptMessage>
         string generated;
         try
         {
-            var aiResp = await aiClient.PostAsJsonAsync("/generate", new { prompt = augmentedPrompt });
+            var model = _configuration["AI_MODEL"] ?? "lmstudio";
+            var payload = new
+            {
+                model,
+                prompt = augmentedPrompt,
+                temperature = 0.2,
+                max_tokens = 512
+            };
+
+            var aiResp = await aiClient.PostAsJsonAsync("/v1/completions", payload);
             if (aiResp.IsSuccessStatusCode)
             {
-                generated = await aiResp.Content.ReadAsStringAsync();
+                using var stream = await aiResp.Content.ReadAsStreamAsync();
+                using var doc = await JsonDocument.ParseAsync(stream);
+                try
+                {
+                    var choices = doc.RootElement.GetProperty("choices");
+                    if (choices.GetArrayLength() > 0)
+                    {
+                        generated = choices[0].GetProperty("text").GetString() ?? string.Empty;
+                        if (string.IsNullOrWhiteSpace(generated))
+                        {
+                            Console.WriteLine("AI host returned empty text; using fallback response.");
+                            generated = $"Echo: {prompt}";
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("AI host returned no choices; using fallback response.");
+                        generated = $"Echo: {prompt}";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to parse AI response: {ex.Message}; using fallback response.");
+                    generated = $"Echo: {prompt}";
+                }
             }
             else
             {
