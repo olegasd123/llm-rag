@@ -8,6 +8,8 @@ services:
       POSTGRES_USER: rag_user
       POSTGRES_PASSWORD: rag_pass
       POSTGRES_DB: rag
+    ports:
+      - "5433:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
     networks:
