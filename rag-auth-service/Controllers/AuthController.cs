@@ -38,7 +38,7 @@ public class AuthController : ControllerBase
         if (!await reader.ReadAsync())
             return Unauthorized();
 
-        var user = new User(reader.GetInt32(0), reader.GetString(1), reader.GetString(2));
+        var user = new User(reader.GetGuid(0), reader.GetString(1), reader.GetString(2));
 
         if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             return Unauthorized();

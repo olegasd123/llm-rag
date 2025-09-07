@@ -40,8 +40,11 @@ docker compose exec rag-main-db ping rag-data-cache
    ```
 
    ```sql
+    -- Enable UUID generation (PostgreSQL 16)
+    CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
     CREATE TABLE users (
-        id SERIAL PRIMARY KEY,
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         email TEXT NOT NULL UNIQUE,
         password_hash TEXT NOT NULL
     );

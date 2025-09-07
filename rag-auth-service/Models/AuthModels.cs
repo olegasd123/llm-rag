@@ -15,4 +15,4 @@ public record RefreshRequest(string RefreshToken);
 public record IntrospectRequest(string Token);
 
 [SwaggerSchema(Description = "User record retrieved from the authentication database.")]
-public record User(int Id, string Email, string PasswordHash);
+public record User(Guid Id, string Email, string PasswordHash);
