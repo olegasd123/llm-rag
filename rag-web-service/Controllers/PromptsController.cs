@@ -30,7 +30,15 @@ public class PromptsController : ControllerBase
     public async Task<IActionResult> SubmitPrompt([FromBody] PromptRequest request)
     {
         var taskId = Guid.NewGuid();
-        await _publisher.Publish(new RagBackgroundWorker.PromptMessage(taskId, request.Prompt));
+        // Extract user id from JWT (sub claim)
+        var sub = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value
+                  ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (sub is null || !Guid.TryParse(sub, out var userId))
+        {
+            return Unauthorized(new { error = "Invalid or missing user id in token" });
+        }
+
+        await _publisher.Publish(new RagBackgroundWorker.PromptMessage(taskId, userId, request.Prompt));
         return Accepted(new { taskId });
     }
 

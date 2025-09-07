@@ -49,9 +49,11 @@ docker compose exec rag-main-db ping rag-data-cache
         password_hash TEXT NOT NULL
     );
 
+    -- Per-user context used by the worker to augment prompts
     CREATE TABLE IF NOT EXISTS user_data (
-        id SERIAL PRIMARY KEY,
-        data TEXT NOT NULL
+        user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        data TEXT NOT NULL,
+        updated_at TIMESTAMPTZ DEFAULT NOW()
     );
 
     CREATE TABLE IF NOT EXISTS responses (
@@ -75,6 +77,9 @@ docker compose exec rag-main-db ping rag-data-cache
    INSERT INTO users (email, password_hash)
    VALUES ('user@example.com', '$2a$12$XUaL3gaf3JePnNPZf20vf.oWqSBcLnvB.HQgPb1mgu4I2rkbKN6.K');
    ```
+5. (Optional) Save per-user context for RAG augmentation via the web service:
+   - PUT `rag-web-service` `/user-data` with body `{ "data": "your notes or profile context" }` using the access token.
+   - GET `/user-data` to read it back.
 4. Build and run the auth service:
    ```bash
    docker compose build rag-auth-service

@@ -24,6 +24,7 @@ public class PromptConsumer : IConsumer<PromptMessage>
     public async Task Consume(ConsumeContext<PromptMessage> context)
     {
         var taskId = context.Message.TaskId;
+        var userId = context.Message.UserId;
         var prompt = context.Message.Prompt;
 
         Console.WriteLine($"Processing task {taskId} with prompt '{prompt}'");
@@ -73,7 +74,7 @@ public class PromptConsumer : IConsumer<PromptMessage>
         }
 
         // 3. Retrieve additional user data from PostgreSQL (cached in Redis)
-        var userKey = $"user:{taskId}";
+        var userKey = $"user:{userId}";
         string userContext;
         var cachedUser = await cacheDb.StringGetAsync(userKey);
         if (!cachedUser.IsNullOrEmpty)
@@ -84,7 +85,8 @@ public class PromptConsumer : IConsumer<PromptMessage>
         {
             await using var userConn = new NpgsqlConnection(_db.ConnectionString);
             await userConn.OpenAsync();
-            using var cmd = new NpgsqlCommand("SELECT data FROM user_data LIMIT 1", userConn);
+            using var cmd = new NpgsqlCommand("SELECT data FROM user_data WHERE user_id = @uid LIMIT 1", userConn);
+            cmd.Parameters.AddWithValue("uid", userId);
             var result = await cmd.ExecuteScalarAsync();
             userContext = result?.ToString() ?? string.Empty;
             await cacheDb.StringSetAsync(userKey, userContext);
