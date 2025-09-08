@@ -32,7 +32,7 @@ export default function ChatPage() {
     setMessages(m => [...m, { role: 'user', content: prompt }]);
     setInput('');
     setIsSending(true);
-    const res = await fetch(`${process.env.WEB_SERVICE_URL}/prompts`, {
+    const res = await fetch(`${process.env.WEB_SERVICE_URL}/api/v1/prompts`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -49,7 +49,7 @@ export default function ChatPage() {
 
   async function poll(id: string) {
     while (true) {
-      const res = await fetch(`${process.env.WEB_SERVICE_URL}/prompts/${id}`, {
+      const res = await fetch(`${process.env.WEB_SERVICE_URL}/api/v1/prompts/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {

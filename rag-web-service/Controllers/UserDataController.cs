@@ -7,7 +7,8 @@ using Swashbuckle.AspNetCore.Annotations;
 namespace RagWebService.Controllers;
 
 [ApiController]
-[Route("user-data")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/user-data")]
 [Authorize]
 [SwaggerTag("Manage per-user context used to augment prompts.")]
 public class UserDataController : ControllerBase
@@ -66,4 +67,3 @@ public class UserDataController : ControllerBase
         return Guid.TryParse(sub, out var id) ? id : null;
     }
 }
-

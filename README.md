@@ -79,8 +79,8 @@ docker compose exec rag-main-db ping rag-data-cache
    VALUES ('user@example.com', '$2a$12$XUaL3gaf3JePnNPZf20vf.oWqSBcLnvB.HQgPb1mgu4I2rkbKN6.K');
    ```
 5. (Optional) Save per-user context for RAG augmentation via the web service:
-   - PUT `rag-web-service` `/user-data` with body `{ "data": "your notes or profile context" }` using the access token.
-   - GET `/user-data` to read it back.
+   - PUT `rag-web-service` `/api/v1/user-data` with body `{ "data": "your notes or profile context" }` using the access token.
+   - GET `/api/v1/user-data` to read it back.
 4. Build and run the auth service:
    ```bash
    docker compose build rag-auth-service

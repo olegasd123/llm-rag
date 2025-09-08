@@ -9,7 +9,8 @@ using Npgsql;
 namespace RagWebService.Controllers;
 
 [ApiController]
-[Route("prompts")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/prompts")]
 [SwaggerTag("Handles submission of prompts and retrieval of generated results.")]
 public class PromptsController : ControllerBase
 {
