@@ -7,7 +7,8 @@ Store a custom knowledge as vector embeddings
 1. Bring up the stack and verify
 
 ```bash
-docker compose up -d
+# Base + dev overrides
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 docker network ls | grep rag-net     # verify the network exists
 docker compose ps
 ```
@@ -95,13 +96,27 @@ export MESSAGE_BROKER_URL="amqp://user:pass@host:5672"  # Use AMQP 5672 (not 156
 dotnet run
 ```
 
+## Compose Files
+
+- docker-compose.yml: shared defaults (images, networks, env, healthchecks, restart policies)
+- docker-compose.dev.yml: dev-only overrides (ports, dev env)
+- docker-compose.prod.yml: prod-only overrides (resource limits, read-only FS, ports only for public services)
+
 ## Running
 
-Set the required environment variables in `.env` and start the stack:
+Set the required environment variables in `.env` and start either dev or prod:
 
+```bash
+# Development (binds dev ports, enables dev env for .NET services)
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build -d
+
+# Production-like (no DB/broker/cache host ports, resource limits/read-only)
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 ```
-docker-compose up --build
-```
+
+Tips:
+- To switch, stop current stack first: `docker compose down` and bring up with the other override file.
+- You can also add `-f docker-compose.dev.yml -f docker-compose.prod.yml` together for mixed overrides if useful.
 
 ### Troubleshooting
 
@@ -112,4 +127,4 @@ docker-compose up --build
 - Worker faulted on prompt with 404 from vector DB or AI host:
   - Qdrant doesn't serve `/search`; current code now falls back if unavailable. If you want real vector search, set up a collection and call Qdrant's `/collections/{name}/points/search`.
   - If your AI host runs on your laptop (not in Docker), set `AI_HOST_URL` to `http://host.docker.internal:1234` so containers can reach it. `http://localhost:1234` resolves inside the container and will fail.
-  - The worker calls the OpenAI-compatible endpoint `/v1/completions`. Set `AI_MODEL` to a valid model id if required by your AI host. For LM Studio, any string typically works and the loaded model is used; `lmstudio` is the default.
+  - The worker calls the OpenAI-compatible endpoint `/v1/completions`. Set `AI_HOST_LM_NAME` to a valid model id if required by your AI host. For LM Studio, any string typically works and the loaded model is used; `lmstudio` is the default.

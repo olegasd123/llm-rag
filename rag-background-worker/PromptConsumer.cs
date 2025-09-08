@@ -98,7 +98,7 @@ public class PromptConsumer : IConsumer<PromptMessage>
         string generated;
         try
         {
-            var model = _configuration["AI_MODEL"] ?? "lmstudio";
+            var model = _configuration["AI_HOST_LM_NAME"] ?? "lmstudio";
             var payload = new
             {
                 model,
