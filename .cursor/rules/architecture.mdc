@@ -58,6 +58,7 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
   - Serves language models that generate responses.
   - LM Studio runs on a local pc for development or a virtual one for production.
   - Clients connect using `AI_HOST_URL` (e.g., `http://rag-ai-host:8080`).
+  - Use `AI_HOST_API_KEY` to specify LM Studio key, and `AI_HOST_LM_NAME` to specify a model.
 - **Main Database**
   - PostgreSQL.
   - Persists user credentials, chat history, and preferences.
