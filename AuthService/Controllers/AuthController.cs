@@ -143,12 +143,9 @@ public class AuthController : ControllerBase
 
         var active = _tokenService.ValidateToken(request.Token) != null;
 
-        return Ok(new
-        {
-            active,
-            sub = principal.FindFirstValue(JwtRegisteredClaimNames.Sub),
-            email = principal.FindFirstValue(JwtRegisteredClaimNames.Email)
-        });
+        var sub = principal.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        var email = principal.FindFirstValue(JwtRegisteredClaimNames.Email);
+        return Ok(new { active, sub, email });
     }
 
     [HttpPost("logout")]

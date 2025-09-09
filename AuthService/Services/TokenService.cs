@@ -46,7 +46,11 @@ public class TokenService
 
     public ClaimsPrincipal? ValidateToken(string token, bool validateLifetime = true)
     {
-        var tokenHandler = new JwtSecurityTokenHandler();
+        var tokenHandler = new JwtSecurityTokenHandler
+        {
+            MapInboundClaims = false
+        };
+        tokenHandler.InboundClaimTypeMap.Clear();
         try
         {
             var principal = tokenHandler.ValidateToken(token, new TokenValidationParameters
