@@ -14,6 +14,9 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
   - Runs in the `client-app` container.
   - Uses `AUTH_SERVICE_URL` to reach the Auth Service.
   - Uses `WEB_SERVICE_URL` to reach the Web Service.
+- **Contracts**
+  - Shared common requests, responses, and logic between .NET projects.
+  - Implemented in C# using .NET 8.
 - **Web Service**
   - Receives prompts, orchestrates retrieval and generation, and exposes REST endpoints.
   - Implemented in C# as a ASP.NET Core Web API using .NET 8.

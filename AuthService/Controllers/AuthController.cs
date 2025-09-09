@@ -43,33 +43,92 @@ public class AuthController : ControllerBase
         if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             return Unauthorized();
 
+        // Generate tokens
         var access = _tokenService.GenerateAccessToken(user.Id.ToString(), user.Email);
         var refresh = _tokenService.GenerateRefreshToken(user.Id.ToString(), user.Email);
-        return Ok(new TokenResponse(access, refresh, 900));
+
+        // Ensure we can insert after using the reader
+        await reader.DisposeAsync();
+
+        var refreshExpiry = DateTime.UtcNow.AddDays(7);
+        const string upsertSql = @"
+            INSERT INTO refresh_tokens (user_id, token, expires_at)
+            VALUES (@uid, @token, @exp)
+            ON CONFLICT (user_id)
+            DO UPDATE SET token = EXCLUDED.token, expires_at = EXCLUDED.expires_at, rotated_at = now();";
+        await using (var upsertCmd = new NpgsqlCommand(upsertSql, conn))
+        {
+            upsertCmd.Parameters.AddWithValue("uid", user.Id);
+            upsertCmd.Parameters.AddWithValue("token", refresh);
+            upsertCmd.Parameters.AddWithValue("exp", refreshExpiry);
+            await upsertCmd.ExecuteNonQueryAsync();
+        }
+
+        // Only return the access token to the client
+        return Ok(new TokenResponse(access, 900));
     }
 
     [HttpPost("refresh")]
-    [SwaggerOperation(Summary = "Refresh tokens", Description = "Generates new access and refresh tokens using a valid refresh token.")]
-    public IActionResult Refresh([FromBody] RefreshRequest request)
+    [SwaggerOperation(Summary = "Refresh access token", Description = "Generates a new access token using a server-side stored refresh token. The client never sees the refresh token.")]
+    public async Task<IActionResult> Refresh([FromBody] RefreshRequest request)
     {
-        Console.WriteLine($"Token refresh attempt");
+        Console.WriteLine($"Token refresh attempt (server-side)");
 
-        var principal = _tokenService.ValidateToken(request.RefreshToken);
+        // The request carries the user's access token (can be expired). Extract identity ignoring lifetime.
+        var principal = _tokenService.ValidateToken(request.Token, validateLifetime: false);
         if (principal == null)
             return Unauthorized();
 
-        var typ = principal.Claims.FirstOrDefault(c => c.Type == "typ")?.Value;
+        var userIdStr = principal.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        var email = principal.FindFirstValue(JwtRegisteredClaimNames.Email);
+        if (userIdStr is null || email is null)
+            return Unauthorized();
+
+        var connString = _configuration["MAIN_DB_CONNECTION_STRING"]!;
+        await using var conn = new NpgsqlConnection(connString);
+        await conn.OpenAsync();
+
+        // Load stored refresh token
+        const string selectSql = "SELECT token, expires_at FROM refresh_tokens WHERE user_id = @uid";
+        await using var selectCmd = new NpgsqlCommand(selectSql, conn);
+        selectCmd.Parameters.AddWithValue("uid", Guid.Parse(userIdStr));
+        await using var reader = await selectCmd.ExecuteReaderAsync();
+        if (!await reader.ReadAsync())
+            return Unauthorized();
+
+        var storedRefresh = reader.GetString(0);
+        var expiresAt = reader.GetDateTime(1);
+
+        if (expiresAt <= DateTime.UtcNow)
+            return Unauthorized();
+
+        // Validate stored refresh token signature and type
+        var refreshPrincipal = _tokenService.ValidateToken(storedRefresh, validateLifetime: true);
+        if (refreshPrincipal == null)
+            return Unauthorized();
+        var typ = refreshPrincipal.Claims.FirstOrDefault(c => c.Type == "typ")?.Value;
         if (typ != "refresh")
             return Unauthorized();
 
-        var userId = principal.FindFirstValue(JwtRegisteredClaimNames.Sub);
-        var email = principal.FindFirstValue(JwtRegisteredClaimNames.Email);
-        if (userId is null || email is null)
-            return Unauthorized();
+        // Rotate refresh token and issue new access token
+        var newAccess = _tokenService.GenerateAccessToken(userIdStr, email);
+        var newRefresh = _tokenService.GenerateRefreshToken(userIdStr, email);
+        var newRefreshExpiry = DateTime.UtcNow.AddDays(7);
 
-        var access = _tokenService.GenerateAccessToken(userId, email);
-        var refresh = _tokenService.GenerateRefreshToken(userId, email);
-        return Ok(new TokenResponse(access, refresh, 900));
+        await reader.DisposeAsync();
+
+        const string updateSql = @"
+            UPDATE refresh_tokens
+            SET token = @token, expires_at = @exp, rotated_at = now()
+            WHERE user_id = @uid";
+        await using var updateCmd = new NpgsqlCommand(updateSql, conn);
+        updateCmd.Parameters.AddWithValue("uid", Guid.Parse(userIdStr));
+        updateCmd.Parameters.AddWithValue("token", newRefresh);
+        updateCmd.Parameters.AddWithValue("exp", newRefreshExpiry);
+        await updateCmd.ExecuteNonQueryAsync();
+
+        // Return only the new access token
+        return Ok(new TokenResponse(newAccess, 900));
     }
 
     [HttpPost("introspect")]
@@ -90,5 +149,31 @@ public class AuthController : ControllerBase
             sub = principal.FindFirstValue(JwtRegisteredClaimNames.Sub),
             email = principal.FindFirstValue(JwtRegisteredClaimNames.Email)
         });
+    }
+
+    [HttpPost("logout")]
+    [SwaggerOperation(Summary = "Logout user", Description = "Revokes the server-side refresh token for the user. Accepts an access token (can be expired).")]
+    public async Task<IActionResult> Logout([FromBody] LogoutRequest request)
+    {
+        Console.WriteLine("Logout attempt");
+
+        var principal = _tokenService.ValidateToken(request.Token, validateLifetime: false);
+        if (principal == null)
+            return Unauthorized();
+
+        var userIdStr = principal.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        if (string.IsNullOrWhiteSpace(userIdStr))
+            return Unauthorized();
+
+        var connString = _configuration["MAIN_DB_CONNECTION_STRING"]!;
+        await using var conn = new NpgsqlConnection(connString);
+        await conn.OpenAsync();
+
+        const string deleteSql = "DELETE FROM refresh_tokens WHERE user_id = @uid";
+        await using var deleteCmd = new NpgsqlCommand(deleteSql, conn);
+        deleteCmd.Parameters.AddWithValue("uid", Guid.Parse(userIdStr));
+        await deleteCmd.ExecuteNonQueryAsync();
+
+        return Ok(new { success = true });
     }
 }

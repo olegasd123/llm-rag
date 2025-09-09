@@ -33,7 +33,7 @@ docker compose exec main-db ping data-cache
      ```bash
      openssl rand -base64 32
      ```
-2. Start the database and create the `users` table:
+2. Start the database and create the `users` and `refresh_tokens` tables:
 
    ```bash
    docker compose up -d main-db
@@ -63,6 +63,15 @@ docker compose exec main-db ping data-cache
         response TEXT NOT NULL,
         created_at TIMESTAMPTZ DEFAULT NOW()
     );
+
+    -- Server-side refresh token storage (one per user)
+    CREATE TABLE IF NOT EXISTS refresh_tokens (
+        user_id    UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        token      TEXT NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        rotated_at TIMESTAMPTZ
+    );
    ```
 
    ```psql
@@ -86,6 +95,12 @@ docker compose exec main-db ping data-cache
    docker compose build AuthService
    docker compose up -d AuthService
    ```
+
+## Auth Flow Notes
+
+- Login returns only an access token and `expiresIn`. The refresh token is stored only on the server in `refresh_tokens`.
+- Refresh: POST `AuthService` `/auth/refresh` with body `{ "token": "<access token>" }` (access token can be expired). Service validates the server-stored refresh token, rotates it, and returns a new access token.
+- Logout: POST `AuthService` `/auth/logout` with body `{ "token": "<access token>" }`. Service deletes the user’s entry in `refresh_tokens`.
 
 ## Running Dev
 
