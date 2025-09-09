@@ -5,6 +5,7 @@ using RagWebService.Models;
 using Swashbuckle.AspNetCore.Annotations;
 using StackExchange.Redis;
 using Npgsql;
+using Contracts.Messages;
 
 namespace RagWebService.Controllers;
 
@@ -39,7 +40,7 @@ public class PromptsController : ControllerBase
             return Unauthorized(new { error = "Invalid or missing user id in token" });
         }
 
-        await _publisher.Publish(new RagBackgroundWorker.PromptMessage(taskId, userId, request.Prompt));
+        await _publisher.Publish(new PromptMessage(taskId, userId, request.Prompt));
         return Accepted(new { taskId });
     }
 

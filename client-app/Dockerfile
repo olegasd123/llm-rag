@@ -1,4 +1,4 @@
-# Dockerfile for rag-client-app
+# Dockerfile for client-app
 FROM node:18-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./

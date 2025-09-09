@@ -1,25 +1,25 @@
 # docker-compose.prod.yml (production overrides)
 
 services:
-  rag-main-db:
+  main-db:
     # Do not expose DB to host in prod
     # Add conservative resource limits
     mem_limit: 1g
     cpus: "1.0"
 
-  rag-data-cache:
+  data-cache:
     mem_limit: 512m
     cpus: "0.5"
 
-  rag-message-broker:
+  message-broker:
     mem_limit: 512m
     cpus: "0.5"
 
-  rag-vector-db:
+  vector-db:
     mem_limit: 1g
     cpus: "1.0"
 
-  rag-auth-service:
+  auth-service:
     mem_limit: 512m
     cpus: "0.5"
     read_only: true
@@ -28,7 +28,7 @@ services:
     ports:
       - "5001:8080"
 
-  rag-web-service:
+  web-service:
     mem_limit: 768m
     cpus: "0.75"
     read_only: true
@@ -37,14 +37,14 @@ services:
     ports:
       - "5002:8080"
 
-  rag-background-worker:
+  background-worker:
     mem_limit: 1g
     cpus: "1.0"
     read_only: true
     tmpfs:
       - /tmp
 
-  rag-client-app:
+  client-app:
     mem_limit: 256m
     cpus: "0.5"
     read_only: true

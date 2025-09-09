@@ -11,70 +11,70 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
   - Provides a ChatGPT-style interface for user prompts.
   - Implemented in TypeScript, Next.js App Router, Tailwind, headlessui, heroicons.
   - Follows the guidelines in `next-dev-rules.mdc`.
-  - Runs in the `rag-client-app` container.
+  - Runs in the `client-app` container.
   - Uses `AUTH_SERVICE_URL` to reach the Auth Service.
   - Uses `WEB_SERVICE_URL` to reach the Web Service.
 - **Web Service**
   - Receives prompts, orchestrates retrieval and generation, and exposes REST endpoints.
   - Implemented in C# as a ASP.NET Core Web API using .NET 8.
-  - Runs in the `rag-web-service` container.
+  - Runs in the `WebService` container.
   - Reads connection settings from environment variables:
-    - `DATA_CACHE_URL` (e.g., `redis://rag-data-cache:6379/0`)
-    - `MESSAGE_BROKER_URL` (e.g., `amqp://rag-message-broker:5672`)
-    - `VECTOR_DB_URL` (e.g., `http://rag-vector-db:6333`)
-    - `AI_HOST_URL` (e.g., `http://rag-ai-host:8080`)
-    - `MAIN_DB_CONNECTION_STRING` (e.g., `Host=rag-main-db;Port=5432;Username=user;Password=pass;Database=rag`)
-    - `AUTH_SERVICE_URL` (e.g., `http://rag-auth-service:8080`)
-    - `MONITORING_URL` (e.g., `http://rag-monitoring:3000`)
-  - Clients connect using `WEB_SERVICE_URL` (e.g., `http://rag-web-service:8080`).
+    - `DATA_CACHE_URL` (e.g., `redis://data-cache:6379/0`)
+    - `MESSAGE_BROKER_URL` (e.g., `amqp://message-broker:5672`)
+    - `VECTOR_DB_URL` (e.g., `http://vector-db:6333`)
+    - `AI_HOST_URL` (e.g., `http://ai-host:8080`)
+    - `MAIN_DB_CONNECTION_STRING` (e.g., `Host=main-db;Port=5432;Username=user;Password=pass;Database=rag`)
+    - `AUTH_SERVICE_URL` (e.g., `http://auth-service:8080`)
+    - `MONITORING_URL` (e.g., `http://monitoring:3000`)
+  - Clients connect using `WEB_SERVICE_URL` (e.g., `http://web-service:8080`).
   - Follows the guidelines in `net-dev-rules.mdc`.
 - **Message Broker**
   - Dispatches tasks between the Web Service and background workers.
-  - Uses a RabbitMQ instance running in its own container (`rag-message-broker`) and the MassTransit library for queue management.
-  - Connection settings are supplied via `MESSAGE_BROKER_URL` (e.g., `amqp://rag-message-broker:5672`).
+  - Uses a RabbitMQ instance running in its own container (`message-broker`) and the MassTransit library for queue management.
+  - Connection settings are supplied via `MESSAGE_BROKER_URL` (e.g., `amqp://message-broker:5672`).
 - **Background Worker**
   - Implemented in C# as a .NET 8 background worker that uses MassTransit to consume jobs from RabbitMQ.
-  - Runs in the `rag-background-worker` container.
+  - Runs in the `background-worker` container.
   - Uses RabbitMQ solely for message transport; task state and results are persisted in PostgreSQL and cached in Redis. Hangfire is not employed for scheduling or storage.
   - Reads connection settings from environment variables:
-    - `MESSAGE_BROKER_URL` (e.g., `amqp://rag-message-broker:5672`)
-    - `DATA_CACHE_URL` (e.g., `redis://rag-data-cache:6379/0`)
-    - `VECTOR_DB_URL` (e.g., `http://rag-vector-db:6333`)
-    - `AI_HOST_URL` (e.g., `http://rag-ai-host:8080`)
-    - `MAIN_DB_CONNECTION_STRING` (e.g., `Host=rag-main-db;Port=5432;Username=user;Password=pass;Database=rag`)
-    - `AUTH_SERVICE_URL` (e.g., `http://rag-auth-service:8080`)
-    - `MONITORING_URL` (e.g., `http://rag-monitoring:3000`).
+    - `MESSAGE_BROKER_URL` (e.g., `amqp://message-broker:5672`)
+    - `DATA_CACHE_URL` (e.g., `redis://data-cache:6379/0`)
+    - `VECTOR_DB_URL` (e.g., `http://vector-db:6333`)
+    - `AI_HOST_URL` (e.g., `http://ai-host:8080`)
+    - `MAIN_DB_CONNECTION_STRING` (e.g., `Host=main-db;Port=5432;Username=user;Password=pass;Database=rag`)
+    - `AUTH_SERVICE_URL` (e.g., `http://auth-service:8080`)
+    - `MONITORING_URL` (e.g., `http://monitoring:3000`).
   - Follows the guidelines in `net-dev-rules.mdc`.
 - **Data Cache**
   - Caches recent vector queries and user data to reduce database load.
-  - Uses a separate Redis instance in the `rag-data-cache` container.
-  - Clients connect using `DATA_CACHE_URL` (e.g., `redis://rag-data-cache:6379/0`).
+  - Uses a separate Redis instance in the `data-cache` container.
+  - Clients connect using `DATA_CACHE_URL` (e.g., `redis://data-cache:6379/0`).
 - **Vector Database**
   - Qdrant.
   - Stores document embeddings for context retrieval.
-  - Runs in the `rag-vector-db` container.
-  - Clients connect using `VECTOR_DB_URL` (e.g., `http://rag-vector-db:6333`).
+  - Runs in the `vector-db` container.
+  - Clients connect using `VECTOR_DB_URL` (e.g., `http://vector-db:6333`).
 - **AI Host**
   - Serves language models that generate responses.
   - LM Studio runs on a local pc for development or a virtual one for production.
-  - Clients connect using `AI_HOST_URL` (e.g., `http://rag-ai-host:8080`).
+  - Clients connect using `AI_HOST_URL` (e.g., `http://ai-host:8080`).
   - Use `AI_HOST_API_KEY` to specify LM Studio key, and `AI_HOST_LM_NAME` to specify a model.
 - **Main Database**
   - PostgreSQL.
   - Persists user credentials, chat history, and preferences.
-  - Follows the conventions in `sql-style-guide.mdc` and runs in the `rag-main-db` container.
-  - Services connect using `MAIN_DB_CONNECTION_STRING` (e.g., `Host=rag-main-db;Port=5432;Username=user;Password=pass;Database=rag`).
+  - Follows the conventions in `sql-style-guide.mdc` and runs in the `main-db` container.
+  - Services connect using `MAIN_DB_CONNECTION_STRING` (e.g., `Host=main-db;Port=5432;Username=user;Password=pass;Database=rag`).
 - **Auth Service**
   - Implemented in C# as a ASP.NET Core Web API using .NET 8.
   - Provides login endpoints that validate user credentials against PostgreSQL.
   - Issues short-lived JWTs with user ID and role claims after successful authentication.
   - Signs tokens with a shared secret or private key so other services can verify them without reaching the issuer.
-  - Runs in the `rag-auth-service` container and is reachable via `AUTH_SERVICE_URL` (e.g., `http://rag-auth-service:8080`).
+  - Runs in the `auth-service` container and is reachable via `AUTH_SERVICE_URL` (e.g., `http://auth-service:8080`).
   - Exposes an introspection endpoint for optional token checks and supports refresh tokens for long-lived sessions.
   - Follows the guidelines in `net-dev-rules.mdc`.
 - **Monitoring Stack**
   - Collects metrics and provides dashboards via Prometheus and Grafana.
-  - Runs in the `rag-monitoring` container and is reachable via `MONITORING_URL` (e.g., `http://rag-monitoring:3000`).
+  - Runs in the `monitoring` container and is reachable via `MONITORING_URL` (e.g., `http://monitoring:3000`).
   - Alerts on system health for proactive maintenance.
 
 ## Data Flow
@@ -88,15 +88,15 @@ The project enables Retrieval-Augmented Generation using a Next.js web client, a
 8. The generated response is stored in PostgreSQL, cached in Redis, and later retrieved by the client using the task identifier.
 
 ## Deployment
-All services are containerized. The Client App (`rag-client-app`) and Web Service (`rag-web-service`) run in dedicated containers alongside the AI Host, Qdrant (`rag-vector-db`), PostgreSQL (`rag-main-db`), the Redis cache (`rag-data-cache`), the RabbitMQ broker (`rag-message-broker`), the Background Worker (`rag-background-worker`), the Auth Service (`rag-auth-service`), and the monitoring stack (`rag-monitoring`).
+All services are containerized. The Client App (`client-app`) and Web Service (`web-service`) run in dedicated containers alongside the AI Host, Qdrant (`vector-db`), PostgreSQL (`main-db`), the Redis cache (`data-cache`), the RabbitMQ broker (`message-broker`), the Background Worker (`background-worker`), the Auth Service (`auth-service`), and the monitoring stack (`monitoring`).
 A Docker Compose configuration orchestrates these containers for local development, wiring the web client and server to the broker, cache, and database, while Kubernetes deployments enable scaling individual services in production through replicas and service discovery.
 Both orchestrators expose the containers on a shared network so the client can reach the server and backend services.
-A Redis instance named `rag-data-cache` handles application caching, while a RabbitMQ instance (`rag-message-broker`) manages task queues.
-The authentication service runs in the `rag-auth-service` container, which exposes HTTP endpoints and signs tokens using `AUTH_JWT_SECRET` or mounted keys. Clients and servers reach it via `AUTH_SERVICE_URL`.
-The Web Service and worker read `AUTH_SERVICE_URL` for `rag-auth-service`, `DATA_CACHE_URL` to connect to `rag-data-cache`, `MESSAGE_BROKER_URL` for MassTransit to connect to `rag-message-broker`, `VECTOR_DB_URL` for `rag-vector-db`, `AI_HOST_URL` for AI Host, `MAIN_DB_CONNECTION_STRING` for `rag-main-db`, and `MONITORING_URL` for `rag-monitoring`.
-The Web Service connects to the AI Host and enqueues jobs to the broker (`rag-message-broker`) via MassTransit, while workers consume them through MassTransit. The server validates JWTs locally using the shared secret or by calling the auth service's (`rag-auth-service`) introspection endpoint.
+A Redis instance named `data-cache` handles application caching, while a RabbitMQ instance (`message-broker`) manages task queues.
+The authentication service runs in the `auth-service` container, which exposes HTTP endpoints and signs tokens using `AUTH_JWT_SECRET` or mounted keys. Clients and servers reach it via `AUTH_SERVICE_URL`.
+The Web Service and worker read `AUTH_SERVICE_URL` for `AuthService`, `DATA_CACHE_URL` to connect to `data-cache`, `MESSAGE_BROKER_URL` for MassTransit to connect to `message-broker`, `VECTOR_DB_URL` for `vector-db`, `AI_HOST_URL` for AI Host, `MAIN_DB_CONNECTION_STRING` for `main-db`, and `MONITORING_URL` for `monitoring`.
+The Web Service connects to the AI Host and enqueues jobs to the broker (`message-broker`) via MassTransit, while workers consume them through MassTransit. The server validates JWTs locally using the shared secret or by calling the auth service's (`AuthService`) introspection endpoint.
 The ASP.NET Core MVC tier can be replicated behind a load balancer (e.g., Nginx, Traefik, or a cloud provider gateway) to evenly distribute API requests and increase availability.
-The Client App (`rag-client-app`) interacts with the server (`rag-web-service`) over HTTP and can be horizontally scaled by running multiple stateless instances behind a CDN or load balancer.
+The Client App (`client-app`) interacts with the server (`WebService`) over HTTP and can be horizontally scaled by running multiple stateless instances behind a CDN or load balancer.
 Sensitive data is encrypted at rest and in transit.
 
 Each service emits structured logs to a centralized aggregator and propagates trace IDs using OpenTelemetry. Metrics, logs, and traces flow into the monitoring stack for dashboards and alerts, ensuring insight into overall system health.

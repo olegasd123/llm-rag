@@ -2,11 +2,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RagWebService", "rag-web-service\RagWebService.csproj", "{F36491C8-925D-CB3D-7E82-633B10949EE9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RagWebService", "WebService\WebService.csproj", "{F36491C8-925D-CB3D-7E82-633B10949EE9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RagBackgroundWorker", "rag-background-worker\RagBackgroundWorker.csproj", "{62724BCB-900E-88B7-C159-A07E8801190C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RagBackgroundWorker", "BackgroundWorker\BackgroundWorker.csproj", "{62724BCB-900E-88B7-C159-A07E8801190C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RagAuthService", "rag-auth-service\RagAuthService.csproj", "{993CD8D7-27BC-DDDA-DFA0-AEF6F54AFD6B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RagAuthService", "AuthService\AuthService.csproj", "{993CD8D7-27BC-DDDA-DFA0-AEF6F54AFD6B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Contracts", "Contracts\Contracts.csproj", "{60D1F8B6-5B91-4A45-9C4D-8C7D1C6B27A7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -26,6 +28,10 @@ Global
 		{993CD8D7-27BC-DDDA-DFA0-AEF6F54AFD6B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{993CD8D7-27BC-DDDA-DFA0-AEF6F54AFD6B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{993CD8D7-27BC-DDDA-DFA0-AEF6F54AFD6B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{60D1F8B6-5B91-4A45-9C4D-8C7D1C6B27A7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{60D1F8B6-5B91-4A45-9C4D-8C7D1C6B27A7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{60D1F8B6-5B91-4A45-9C4D-8C7D1C6B27A7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{60D1F8B6-5B91-4A45-9C4D-8C7D1C6B27A7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,7 +1,7 @@
 # docker-compose.yml (base defaults)
 
 services:
-  rag-main-db:
+  main-db:
     image: postgres:16
     env_file: .env
     environment:
@@ -20,7 +20,7 @@ services:
     networks:
       - rag-net
 
-  rag-data-cache:
+  data-cache:
     image: redis:7
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -31,7 +31,7 @@ services:
     networks:
       - rag-net
 
-  rag-message-broker:
+  message-broker:
     image: rabbitmq:3-management
     environment:
       RABBITMQ_DEFAULT_USER: rag_user
@@ -46,7 +46,7 @@ services:
     networks:
       - rag-net
 
-  rag-vector-db:
+  vector-db:
     image: qdrant/qdrant:latest
     volumes:
       - vector-data:/qdrant/storage
@@ -54,15 +54,15 @@ services:
     networks:
       - rag-net
 
-  rag-auth-service:
-    build: ./rag-auth-service
+  auth-service:
+    build: ./AuthService
     env_file: .env
     environment:
       - MAIN_DB_CONNECTION_STRING=${MAIN_DB_CONNECTION_STRING}
       - JWT_SECRET=${JWT_SECRET}
       - CORS_ORIGIN=${CORS_ORIGIN}
     depends_on:
-      rag-main-db:
+      main-db:
         condition: service_healthy
     volumes:
       - dp-keys-auth:/keys
@@ -70,8 +70,10 @@ services:
     networks:
       - rag-net
 
-  rag-web-service:
-    build: ./rag-web-service
+  web-service:
+    build:
+      context: .
+      dockerfile: WebService/Dockerfile
     env_file: .env
     environment:
       - MESSAGE_BROKER_URL=${MESSAGE_BROKER_URL}
@@ -80,11 +82,11 @@ services:
       - DATA_CACHE_URL=${DATA_CACHE_URL}
       - MAIN_DB_CONNECTION_STRING=${MAIN_DB_CONNECTION_STRING}
     depends_on:
-      rag-message-broker:
+      message-broker:
         condition: service_started
-      rag-data-cache:
+      data-cache:
         condition: service_healthy
-      rag-auth-service:
+      auth-service:
         condition: service_started
     volumes:
       - dp-keys-web:/keys
@@ -92,8 +94,10 @@ services:
     networks:
       - rag-net
 
-  rag-background-worker:
-    build: ./rag-background-worker
+  background-worker:
+    build:
+      context: .
+      dockerfile: BackgroundWorker/Dockerfile
     env_file: .env
     environment:
       - MESSAGE_BROKER_URL=${MESSAGE_BROKER_URL}
@@ -104,21 +108,21 @@ services:
       - AI_HOST_API_KEY=${AI_HOST_API_KEY}
       - AI_HOST_LM_NAME=${AI_HOST_LM_NAME}
     depends_on:
-      rag-message-broker:
+      message-broker:
         condition: service_started
-      rag-data-cache:
+      data-cache:
         condition: service_healthy
-      rag-vector-db:
+      vector-db:
         condition: service_started
-      rag-main-db:
+      main-db:
         condition: service_healthy
     restart: unless-stopped
     networks:
       - rag-net
 
-  rag-client-app:
+  client-app:
     build:
-      context: ./rag-client-app
+      context: ./client-app
       args:
         AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
         WEB_SERVICE_URL: ${WEB_SERVICE_URL}
@@ -127,8 +131,8 @@ services:
       - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
       - WEB_SERVICE_URL=${WEB_SERVICE_URL}
     depends_on:
-      - rag-auth-service
-      - rag-web-service
+      - auth-service
+      - web-service
     restart: unless-stopped
     networks:
       - rag-net

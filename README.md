@@ -16,15 +16,15 @@ docker compose ps
 2. Confirm container-to-container name resolution
 
 ```bash
-docker compose exec rag-main-db ping rag-data-cache
+docker compose exec main-db ping data-cache
 ```
 
 ## Services
 
-- **rag-auth-service**: .NET 8 service providing JWT-based authentication.
-- **rag-web-service**: .NET 8 API for prompt submission and result retrieval.
-- **rag-background-worker**: .NET 8 worker processing queued prompts.
-- **rag-client-app**: Next.js interface for authentication and chat.
+- **AuthService**: .NET 8 service providing JWT-based authentication.
+- **WebService**: .NET 8 API for prompt submission and result retrieval.
+- **BackgroundWorker**: .NET 8 worker processing queued prompts.
+- **client-app**: Next.js interface for authentication and chat.
 
 ### Setup
 
@@ -36,8 +36,8 @@ docker compose exec rag-main-db ping rag-data-cache
 2. Start the database and create the `users` table:
 
    ```bash
-   docker compose up -d rag-main-db
-   docker compose exec rag-main-db psql -U rag_user -d rag -e PGPASSWORD=<you can take it from .env>
+   docker compose up -d main-db
+   docker compose exec main-db psql -U rag_user -d rag -e PGPASSWORD=<you can take it from .env>
    ```
 
    ```sql
@@ -79,12 +79,12 @@ docker compose exec rag-main-db ping rag-data-cache
    VALUES ('user@example.com', '$2a$12$XUaL3gaf3JePnNPZf20vf.oWqSBcLnvB.HQgPb1mgu4I2rkbKN6.K');
    ```
 5. (Optional) Save per-user context for RAG augmentation via the web service:
-   - PUT `rag-web-service` `/api/v1/user-data` with body `{ "data": "your notes or profile context" }` using the access token.
+   - PUT `WebService` `/api/v1/user-data` with body `{ "data": "your notes or profile context" }` using the access token.
    - GET `/api/v1/user-data` to read it back.
 4. Build and run the auth service:
    ```bash
-   docker compose build rag-auth-service
-   docker compose up -d rag-auth-service
+   docker compose build AuthService
+   docker compose up -d AuthService
    ```
 
 ## Running Dev
@@ -121,8 +121,8 @@ Tips:
 ### Troubleshooting
 
 - RabbitMQ connection failed (MassTransit shows `rabbitmq://...:15672/`):
-  - 15672 is the management UI port. Set `MESSAGE_BROKER_URL` to the AMQP port 5672, e.g. `amqp://guest:guest@rag-message-broker:5672`.
-  - No host port mapping for 5672 is required when services run inside Docker; they reach `rag-message-broker:5672` on the internal network.
+  - 15672 is the management UI port. Set `MESSAGE_BROKER_URL` to the AMQP port 5672, e.g. `amqp://guest:guest@message-broker:5672`.
+  - No host port mapping for 5672 is required when services run inside Docker; they reach `message-broker:5672` on the internal network.
   - The management UI is available on `http://localhost:15672` (guest/guest by default).
 - Worker faulted on prompt with 404 from vector DB or AI host:
   - Qdrant doesn't serve `/search`; current code now falls back if unavailable. If you want real vector search, set up a collection and call Qdrant's `/collections/{name}/points/search`.

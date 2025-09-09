@@ -3,6 +3,7 @@ using Npgsql;
 using StackExchange.Redis;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Contracts.Messages;
 
 namespace RagBackgroundWorker;
 
