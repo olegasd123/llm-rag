@@ -9,7 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 var configuration = builder.Configuration;
 var jwtSecret = configuration["JWT_SECRET"] ?? throw new InvalidOperationException("JWT_SECRET not configured");
-var dbConnectionString = configuration["MAIN_DB_URL"] ?? throw new InvalidOperationException("MAIN_DB_URL not configured");
+var dbConnectionString = configuration["MAIN_DB_CONNECTION_STRING"] ?? throw new InvalidOperationException("MAIN_DB_CONNECTION_STRING not configured");
 var corsOrigin = configuration["CORS_ORIGIN"] ?? "http://localhost:3000";
 
 builder.Services.AddSingleton(new RagAuthService.TokenService(jwtSecret));

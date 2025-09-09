@@ -16,7 +16,7 @@ var configuration = builder.Configuration;
 var jwtSecret = configuration["JWT_SECRET"] ?? throw new InvalidOperationException("JWT_SECRET not configured");
 var brokerUrl = configuration["MESSAGE_BROKER_URL"] ?? throw new InvalidOperationException("MESSAGE_BROKER_URL not configured");
 var cacheUrl = configuration["DATA_CACHE_URL"] ?? throw new InvalidOperationException("DATA_CACHE_URL not configured");
-var mainDbUrl = configuration["MAIN_DB_URL"] ?? throw new InvalidOperationException("MAIN_DB_URL not configured");
+var mainDbConnectionString = configuration["MAIN_DB_CONNECTION_STRING"] ?? throw new InvalidOperationException("MAIN_DB_CONNECTION_STRING not configured");
 var corsOrigin = configuration["CORS_ORIGIN"] ?? "http://localhost:3000";
 
 builder.Services.AddControllers();
@@ -88,7 +88,7 @@ builder.Services.AddAuthorization();
 var redisOptions = ConfigurationOptions.Parse(cacheUrl);
 redisOptions.AbortOnConnectFail = false; // keep retrying until Redis is ready
 builder.Services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisOptions));
-builder.Services.AddSingleton(_ => new NpgsqlConnection(mainDbUrl));
+builder.Services.AddSingleton(_ => new NpgsqlConnection(mainDbConnectionString));
 
 var app = builder.Build();
 

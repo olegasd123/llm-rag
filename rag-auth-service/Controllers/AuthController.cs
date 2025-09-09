@@ -28,7 +28,7 @@ public class AuthController : ControllerBase
     {
         Console.WriteLine($"Login attempt for {request.Email}");
 
-        var connString = _configuration["MAIN_DB_URL"]!;
+        var connString = _configuration["MAIN_DB_CONNECTION_STRING"]!;
         await using var conn = new NpgsqlConnection(connString);
         await conn.OpenAsync();
 

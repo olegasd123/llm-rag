@@ -16,7 +16,7 @@ This roadmap outlines steps to implement the Retrieval-Augmented Generation plat
   - `MESSAGE_BROKER_URL`
   - `VECTOR_DB_URL`
   - `AI_HOST_URL`
-  - `MAIN_DB_URL`
+  - `MAIN_DB_CONNECTION_STRING`
   - `AUTH_SERVICE_URL`
   - `MONITORING_URL`
 

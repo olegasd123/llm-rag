@@ -58,7 +58,7 @@ services:
     build: ./rag-auth-service
     env_file: .env
     environment:
-      - MAIN_DB_URL=${MAIN_DB_URL}
+      - MAIN_DB_CONNECTION_STRING=${MAIN_DB_CONNECTION_STRING}
       - JWT_SECRET=${JWT_SECRET}
       - CORS_ORIGIN=${CORS_ORIGIN}
     depends_on:
@@ -78,7 +78,7 @@ services:
       - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
       - JWT_SECRET=${JWT_SECRET}
       - DATA_CACHE_URL=${DATA_CACHE_URL}
-      - MAIN_DB_URL=${MAIN_DB_URL}
+      - MAIN_DB_CONNECTION_STRING=${MAIN_DB_CONNECTION_STRING}
     depends_on:
       rag-message-broker:
         condition: service_started
@@ -99,7 +99,7 @@ services:
       - MESSAGE_BROKER_URL=${MESSAGE_BROKER_URL}
       - DATA_CACHE_URL=${DATA_CACHE_URL}
       - VECTOR_DB_URL=${VECTOR_DB_URL}
-      - MAIN_DB_URL=${MAIN_DB_URL}
+      - MAIN_DB_CONNECTION_STRING=${MAIN_DB_CONNECTION_STRING}
       - AI_HOST_URL=${AI_HOST_URL}
       - AI_HOST_API_KEY=${AI_HOST_API_KEY}
       - AI_HOST_LM_NAME=${AI_HOST_LM_NAME}
