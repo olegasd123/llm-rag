@@ -13,8 +13,8 @@ public record TokenResponse(
     int RefreshExpiresIn
 );
 
-[SwaggerSchema(Description = "Request to obtain a new access token using a user's access token (can be expired). Refresh is handled server-side.")]
-public record RefreshRequest(string Token);
+[SwaggerSchema(Description = "Request to obtain a new access token using a refresh token provided by the client.")]
+public record RefreshRequest(string RefreshToken);
 
 [SwaggerSchema(Description = "Request to verify the validity of a token.")]
 public record IntrospectRequest(string Token);

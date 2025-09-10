@@ -58,7 +58,7 @@ public class AuthController : ControllerBase
         await using (var upsertCmd = new NpgsqlCommand(upsertSql, conn))
         {
             upsertCmd.Parameters.AddWithValue("uid", user.Id);
-            upsertCmd.Parameters.AddWithValue("token", refresh);
+            upsertCmd.Parameters.AddWithValue("token", TokenHashing.ComputeHash(refresh));
             upsertCmd.Parameters.AddWithValue("exp", DateTime.UtcNow.AddSeconds(_tokenService.RefreshTokenExpiryInSeconds));
             await upsertCmd.ExecuteNonQueryAsync();
         }
@@ -68,18 +68,24 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("refresh")]
-    [SwaggerOperation(Summary = "Refresh tokens", Description = "Validates and rotates the stored refresh token and returns a new access token and new refresh token.")]
+    [SwaggerOperation(
+        Summary = "Refresh tokens",
+        Description = "Client sends refresh token. If it matches the server-stored token, rotate and return new access and refresh tokens. On mismatch, revoke and require re-login.")]
     public async Task<IActionResult> Refresh([FromBody] RefreshRequest request)
     {
-        Console.WriteLine($"Token refresh attempt");
+        Console.WriteLine($"Token refresh attempt (client-sent refresh token)");
 
-        // The request carries the user's access token (can be expired). Extract identity ignoring lifetime.
-        var principal = _tokenService.ValidateToken(request.Token, validateLifetime: false);
-        if (principal == null)
+        // Validate the provided refresh token fully
+        var refreshPrincipal = _tokenService.ValidateToken(request.RefreshToken, validateLifetime: true);
+        if (refreshPrincipal == null)
             return Unauthorized();
 
-        var userIdStr = principal.FindFirstValue(JwtRegisteredClaimNames.Sub);
-        var email = principal.FindFirstValue(JwtRegisteredClaimNames.Email);
+        var typ = refreshPrincipal.Claims.FirstOrDefault(c => c.Type == "typ")?.Value;
+        if (typ != "refresh")
+            return Unauthorized();
+
+        var userIdStr = refreshPrincipal.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        var email = refreshPrincipal.FindFirstValue(JwtRegisteredClaimNames.Email);
         if (userIdStr is null || email is null)
             return Unauthorized();
 
@@ -95,18 +101,22 @@ public class AuthController : ControllerBase
         if (!await reader.ReadAsync())
             return Unauthorized();
 
-        var storedRefresh = reader.GetString(0);
+        var storedRefreshHash = reader.GetString(0);
         var expiresAt = reader.GetDateTime(1);
 
-        if (expiresAt <= DateTime.UtcNow)
+        // If DB does not contain the same token (reuse/mismatch), revoke the session
+        var providedHash = TokenHashing.ComputeHash(request.RefreshToken);
+        if (!string.Equals(storedRefreshHash, providedHash, StringComparison.Ordinal))
+        {
+            await reader.DisposeAsync();
+            const string revokeSql = "DELETE FROM refresh_tokens WHERE user_id = @uid";
+            await using var revokeCmd = new NpgsqlCommand(revokeSql, conn);
+            revokeCmd.Parameters.AddWithValue("uid", Guid.Parse(userIdStr));
+            await revokeCmd.ExecuteNonQueryAsync();
             return Unauthorized();
+        }
 
-        // Validate stored refresh token signature and type
-        var refreshPrincipal = _tokenService.ValidateToken(storedRefresh, validateLifetime: true);
-        if (refreshPrincipal == null)
-            return Unauthorized();
-        var typ = refreshPrincipal.Claims.FirstOrDefault(c => c.Type == "typ")?.Value;
-        if (typ != "refresh")
+        if (expiresAt <= DateTime.UtcNow)
             return Unauthorized();
 
         // Rotate refresh token and issue new access token
@@ -121,7 +131,7 @@ public class AuthController : ControllerBase
             WHERE user_id = @uid";
         await using var updateCmd = new NpgsqlCommand(updateSql, conn);
         updateCmd.Parameters.AddWithValue("uid", Guid.Parse(userIdStr));
-        updateCmd.Parameters.AddWithValue("token", newRefresh);
+        updateCmd.Parameters.AddWithValue("token", TokenHashing.ComputeHash(newRefresh));
         updateCmd.Parameters.AddWithValue("exp", DateTime.UtcNow.AddSeconds(_tokenService.RefreshTokenExpiryInSeconds));
         await updateCmd.ExecuteNonQueryAsync();
 
