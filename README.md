@@ -1,6 +1,8 @@
 # llm-rag
 
-Store a custom knowledge as vector embeddings
+Store a custom knowledge as vector embeddings.
+
+The architecture of the project in `.cursor/rules/architecture.mdc`
 
 ### Setup
 
