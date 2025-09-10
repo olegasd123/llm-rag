@@ -64,13 +64,14 @@ docker compose exec main-db ping data-cache
         created_at TIMESTAMPTZ DEFAULT NOW()
     );
 
-    -- Server-side refresh token storage (one per user)
+    -- Server-side refresh token storage (multiple per user, token stores SHA-256 hash)
     CREATE TABLE IF NOT EXISTS refresh_tokens (
-        user_id    UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-        token      TEXT NOT NULL,
+        user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token      TEXT NOT NULL,  -- SHA-256 hex
         expires_at TIMESTAMPTZ NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        rotated_at TIMESTAMPTZ
+        rotated_at TIMESTAMPTZ,
+        PRIMARY KEY (user_id, token)
     );
    ```
 

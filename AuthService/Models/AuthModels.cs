@@ -22,5 +22,8 @@ public record IntrospectRequest(string Token);
 [SwaggerSchema(Description = "Request to logout (revoke server-side refresh token) using an access token, which may be expired.")]
 public record LogoutRequest(string Token);
 
+[SwaggerSchema(Description = "Request to logout the current device/session by revoking a single refresh token.")]
+public record LogoutDeviceRequest(string RefreshToken);
+
 [SwaggerSchema(Description = "User record retrieved from the authentication database.")]
 public record User(Guid Id, string Email, string PasswordHash);

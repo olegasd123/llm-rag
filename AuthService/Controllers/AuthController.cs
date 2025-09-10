@@ -50,12 +50,10 @@ public class AuthController : ControllerBase
         // Ensure we can insert after using the reader
         await reader.DisposeAsync();
 
-        const string upsertSql = @"
+        const string insertSql = @"
             INSERT INTO refresh_tokens (user_id, token, expires_at)
-            VALUES (@uid, @token, @exp)
-            ON CONFLICT (user_id)
-            DO UPDATE SET token = EXCLUDED.token, expires_at = EXCLUDED.expires_at, rotated_at = now();";
-        await using (var upsertCmd = new NpgsqlCommand(upsertSql, conn))
+            VALUES (@uid, @token, @exp);";
+        await using (var upsertCmd = new NpgsqlCommand(insertSql, conn))
         {
             upsertCmd.Parameters.AddWithValue("uid", user.Id);
             upsertCmd.Parameters.AddWithValue("token", TokenHashing.ComputeHash(refresh));
@@ -93,26 +91,26 @@ public class AuthController : ControllerBase
         await using var conn = new NpgsqlConnection(connString);
         await conn.OpenAsync();
 
-        // Load stored refresh token
-        const string selectSql = "SELECT token, expires_at FROM refresh_tokens WHERE user_id = @uid";
+        // Load refresh token row by token hash
+        const string selectSql = "SELECT user_id, expires_at FROM refresh_tokens WHERE token = @token";
         await using var selectCmd = new NpgsqlCommand(selectSql, conn);
-        selectCmd.Parameters.AddWithValue("uid", Guid.Parse(userIdStr));
+        var providedHash = TokenHashing.ComputeHash(request.RefreshToken);
+        selectCmd.Parameters.AddWithValue("token", providedHash);
         await using var reader = await selectCmd.ExecuteReaderAsync();
         if (!await reader.ReadAsync())
             return Unauthorized();
 
-        var storedRefreshHash = reader.GetString(0);
+        var storedUserId = reader.GetGuid(0);
         var expiresAt = reader.GetDateTime(1);
 
-        // If DB does not contain the same token (reuse/mismatch), revoke the session
-        var providedHash = TokenHashing.ComputeHash(request.RefreshToken);
-        if (!string.Equals(storedRefreshHash, providedHash, StringComparison.Ordinal))
+        // Cross-check: token's subject must match row's user_id
+        if (!Guid.TryParse(userIdStr, out var userId) || userId != storedUserId)
         {
             await reader.DisposeAsync();
-            const string revokeSql = "DELETE FROM refresh_tokens WHERE user_id = @uid";
-            await using var revokeCmd = new NpgsqlCommand(revokeSql, conn);
-            revokeCmd.Parameters.AddWithValue("uid", Guid.Parse(userIdStr));
-            await revokeCmd.ExecuteNonQueryAsync();
+            const string revokeSuspiciousSql = "DELETE FROM refresh_tokens WHERE token = @token";
+            await using var revokeSuspiciousCmd = new NpgsqlCommand(revokeSuspiciousSql, conn);
+            revokeSuspiciousCmd.Parameters.AddWithValue("token", providedHash);
+            await revokeSuspiciousCmd.ExecuteNonQueryAsync();
             return Unauthorized();
         }
 
@@ -127,11 +125,12 @@ public class AuthController : ControllerBase
 
         const string updateSql = @"
             UPDATE refresh_tokens
-            SET token = @token, expires_at = @exp, rotated_at = now()
-            WHERE user_id = @uid";
+            SET token = @newtoken, expires_at = @exp, rotated_at = now()
+            WHERE user_id = @uid AND token = @oldtoken";
         await using var updateCmd = new NpgsqlCommand(updateSql, conn);
-        updateCmd.Parameters.AddWithValue("uid", Guid.Parse(userIdStr));
-        updateCmd.Parameters.AddWithValue("token", TokenHashing.ComputeHash(newRefresh));
+        updateCmd.Parameters.AddWithValue("uid", userId);
+        updateCmd.Parameters.AddWithValue("oldtoken", providedHash);
+        updateCmd.Parameters.AddWithValue("newtoken", TokenHashing.ComputeHash(newRefresh));
         updateCmd.Parameters.AddWithValue("exp", DateTime.UtcNow.AddSeconds(_tokenService.RefreshTokenExpiryInSeconds));
         await updateCmd.ExecuteNonQueryAsync();
 
@@ -180,5 +179,35 @@ public class AuthController : ControllerBase
         await deleteCmd.ExecuteNonQueryAsync();
 
         return Ok(new { success = true });
+    }
+
+    [HttpPost("logout-device")]
+    [SwaggerOperation(Summary = "Logout current device", Description = "Revokes only the provided refresh token (device/session logout).")]
+    public async Task<IActionResult> LogoutDevice([FromBody] LogoutDeviceRequest request)
+    {
+        Console.WriteLine("Logout current device attempt");
+
+        // Validate token signature; ignore lifetime so expired tokens can be revoked
+        var principal = _tokenService.ValidateToken(request.RefreshToken, validateLifetime: false);
+        if (principal == null)
+            return Unauthorized();
+
+        var userIdStr = principal.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        if (!Guid.TryParse(userIdStr, out var userId))
+            return Unauthorized();
+
+        var tokenHash = TokenHashing.ComputeHash(request.RefreshToken);
+
+        var connString = _configuration["MAIN_DB_CONNECTION_STRING"]!;
+        await using var conn = new NpgsqlConnection(connString);
+        await conn.OpenAsync();
+
+        const string deleteSql = "DELETE FROM refresh_tokens WHERE user_id = @uid AND token = @token";
+        await using var deleteCmd = new NpgsqlCommand(deleteSql, conn);
+        deleteCmd.Parameters.AddWithValue("uid", userId);
+        deleteCmd.Parameters.AddWithValue("token", tokenHash);
+        var affected = await deleteCmd.ExecuteNonQueryAsync();
+
+        return Ok(new { success = affected > 0 });
     }
 }
