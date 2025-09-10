@@ -16,7 +16,11 @@ var refreshTokenExpiryInSeconds = 30 * 24 * 60 * 60; // 30 days
 
 builder.Services.AddSingleton(new RagAuthService.TokenService(jwtSecret, assessTokenExpiryInSeconds, refreshTokenExpiryInSeconds));
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
