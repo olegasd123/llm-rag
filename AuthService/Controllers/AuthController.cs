@@ -23,7 +23,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
-    [SwaggerOperation(Summary = "Authenticate user", Description = "Verifies credentials and returns access and refresh tokens.")]
+    [SwaggerOperation(Summary = "Authenticate user", Description = "Verifies credentials and returns both access and refresh tokens.")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         Console.WriteLine($"Login attempt for {request.Email}");
@@ -50,7 +50,6 @@ public class AuthController : ControllerBase
         // Ensure we can insert after using the reader
         await reader.DisposeAsync();
 
-        var refreshExpiry = DateTime.UtcNow.AddDays(7);
         const string upsertSql = @"
             INSERT INTO refresh_tokens (user_id, token, expires_at)
             VALUES (@uid, @token, @exp)
@@ -60,19 +59,19 @@ public class AuthController : ControllerBase
         {
             upsertCmd.Parameters.AddWithValue("uid", user.Id);
             upsertCmd.Parameters.AddWithValue("token", refresh);
-            upsertCmd.Parameters.AddWithValue("exp", refreshExpiry);
+            upsertCmd.Parameters.AddWithValue("exp", DateTime.UtcNow.AddSeconds(_tokenService.RefreshTokenExpiryInSeconds));
             await upsertCmd.ExecuteNonQueryAsync();
         }
 
-        // Only return the access token to the client
-        return Ok(new TokenResponse(access, 900));
+        // Return both access and refresh tokens to the client
+        return Ok(new TokenResponse(access, _tokenService.AccessTokenExpiryInSeconds, refresh, _tokenService.RefreshTokenExpiryInSeconds));
     }
 
     [HttpPost("refresh")]
-    [SwaggerOperation(Summary = "Refresh access token", Description = "Generates a new access token using a server-side stored refresh token. The client never sees the refresh token.")]
+    [SwaggerOperation(Summary = "Refresh tokens", Description = "Validates and rotates the stored refresh token and returns a new access token and new refresh token.")]
     public async Task<IActionResult> Refresh([FromBody] RefreshRequest request)
     {
-        Console.WriteLine($"Token refresh attempt (server-side)");
+        Console.WriteLine($"Token refresh attempt");
 
         // The request carries the user's access token (can be expired). Extract identity ignoring lifetime.
         var principal = _tokenService.ValidateToken(request.Token, validateLifetime: false);
@@ -113,7 +112,6 @@ public class AuthController : ControllerBase
         // Rotate refresh token and issue new access token
         var newAccess = _tokenService.GenerateAccessToken(userIdStr, email);
         var newRefresh = _tokenService.GenerateRefreshToken(userIdStr, email);
-        var newRefreshExpiry = DateTime.UtcNow.AddDays(7);
 
         await reader.DisposeAsync();
 
@@ -124,11 +122,11 @@ public class AuthController : ControllerBase
         await using var updateCmd = new NpgsqlCommand(updateSql, conn);
         updateCmd.Parameters.AddWithValue("uid", Guid.Parse(userIdStr));
         updateCmd.Parameters.AddWithValue("token", newRefresh);
-        updateCmd.Parameters.AddWithValue("exp", newRefreshExpiry);
+        updateCmd.Parameters.AddWithValue("exp", DateTime.UtcNow.AddSeconds(_tokenService.RefreshTokenExpiryInSeconds));
         await updateCmd.ExecuteNonQueryAsync();
 
-        // Return only the new access token
-        return Ok(new TokenResponse(newAccess, 900));
+        // Return new access and refresh tokens
+        return Ok(new TokenResponse(newAccess, _tokenService.AccessTokenExpiryInSeconds, newRefresh, _tokenService.RefreshTokenExpiryInSeconds));
     }
 
     [HttpPost("introspect")]

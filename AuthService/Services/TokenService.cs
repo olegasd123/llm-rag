@@ -9,12 +9,24 @@ public class TokenService
 {
     private readonly string _secret;
 
-    public TokenService(string secret)
+    public int AccessTokenExpiryInSeconds { get; }
+    public int RefreshTokenExpiryInSeconds { get; }
+
+    public TokenService(string secret, int accessTokenExpiryInSeconds = 15 * 60, int refreshTokenExpiryInSeconds = 7 * 24 * 60 * 60)
     {
         _secret = secret;
+        AccessTokenExpiryInSeconds = accessTokenExpiryInSeconds;
+        RefreshTokenExpiryInSeconds = refreshTokenExpiryInSeconds;
     }
 
     private SymmetricSecurityKey GetSigningKey() => new(Encoding.UTF8.GetBytes(_secret));
+
+    private string GenerateToken(IEnumerable<Claim> claims, DateTime expires)
+    {
+        var creds = new SigningCredentials(GetSigningKey(), SecurityAlgorithms.HmacSha256);
+        var token = new JwtSecurityToken(claims: claims, expires: expires, signingCredentials: creds);
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
 
     public string GenerateAccessToken(string userId, string email)
     {
@@ -23,7 +35,7 @@ public class TokenService
             new Claim(JwtRegisteredClaimNames.Sub, userId),
             new Claim(JwtRegisteredClaimNames.Email, email)
         };
-        return GenerateToken(claims, DateTime.UtcNow.AddMinutes(15));
+        return GenerateToken(claims, DateTime.UtcNow.AddSeconds(AccessTokenExpiryInSeconds));
     }
 
     public string GenerateRefreshToken(string userId, string email)
@@ -34,14 +46,7 @@ public class TokenService
             new Claim(JwtRegisteredClaimNames.Email, email),
             new Claim("typ", "refresh")
         };
-        return GenerateToken(claims, DateTime.UtcNow.AddDays(7));
-    }
-
-    private string GenerateToken(IEnumerable<Claim> claims, DateTime expires)
-    {
-        var creds = new SigningCredentials(GetSigningKey(), SecurityAlgorithms.HmacSha256);
-        var token = new JwtSecurityToken(claims: claims, expires: expires, signingCredentials: creds);
-        return new JwtSecurityTokenHandler().WriteToken(token);
+        return GenerateToken(claims, DateTime.UtcNow.AddSeconds(RefreshTokenExpiryInSeconds));
     }
 
     public ClaimsPrincipal? ValidateToken(string token, bool validateLifetime = true)

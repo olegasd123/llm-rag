@@ -11,8 +11,10 @@ var configuration = builder.Configuration;
 var jwtSecret = configuration["JWT_SECRET"] ?? throw new InvalidOperationException("JWT_SECRET not configured");
 var dbConnectionString = configuration["MAIN_DB_CONNECTION_STRING"] ?? throw new InvalidOperationException("MAIN_DB_CONNECTION_STRING not configured");
 var corsOrigin = configuration["CORS_ORIGIN"] ?? "http://localhost:3000";
+var assessTokenExpiryInSeconds = 15 * 60; // 15 minutes
+var refreshTokenExpiryInSeconds = 30 * 24 * 60 * 60; // 30 days
 
-builder.Services.AddSingleton(new RagAuthService.TokenService(jwtSecret));
+builder.Services.AddSingleton(new RagAuthService.TokenService(jwtSecret, assessTokenExpiryInSeconds, refreshTokenExpiryInSeconds));
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

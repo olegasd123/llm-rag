@@ -5,8 +5,13 @@ namespace RagAuthService.Models;
 [SwaggerSchema(Description = "Login request containing user credentials.")]
 public record LoginRequest(string Email, string Password);
 
-[SwaggerSchema(Description = "JWT access token returned after successful authentication or refresh.")]
-public record TokenResponse(string AccessToken, int ExpiresIn);
+[SwaggerSchema(Description = "Access and refresh tokens returned after successful authentication or refresh.")]
+public record TokenResponse(
+    string AccessToken,
+    int AccessExpiresIn,
+    string RefreshToken,
+    int RefreshExpiresIn
+);
 
 [SwaggerSchema(Description = "Request to obtain a new access token using a user's access token (can be expired). Refresh is handled server-side.")]
 public record RefreshRequest(string Token);
