@@ -1,7 +1,9 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
 using Npgsql;
 using RagAuthService.Models;
 using Swashbuckle.AspNetCore.Annotations;
@@ -46,23 +48,32 @@ public class AuthController : ControllerBase
         // Generate tokens
         var access = _tokenService.GenerateAccessToken(user.Id.ToString(), user.Email);
         var refresh = _tokenService.GenerateRefreshToken(user.Id.ToString(), user.Email);
-
-        // Ensure we can insert after using the reader
+        var sessionKey = request.SessionKey;
+        if (string.IsNullOrWhiteSpace(sessionKey))
+        {
+            sessionKey = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
+        }
         await reader.DisposeAsync();
 
+        // Upsert refresh token record bound to user ID and session key
         const string insertSql = @"
-            INSERT INTO refresh_tokens (user_id, token, expires_at)
-            VALUES (@uid, @token, @exp);";
+            INSERT INTO refresh_tokens (user_id, token, expires_at, session_key)
+            VALUES (@uid, @token, @exp, @sid)
+            ON CONFLICT (user_id, session_key)
+            DO UPDATE SET token = EXCLUDED.token,
+                          expires_at = EXCLUDED.expires_at,
+                          rotated_at = null";
         await using (var upsertCmd = new NpgsqlCommand(insertSql, conn))
         {
             upsertCmd.Parameters.AddWithValue("uid", user.Id);
             upsertCmd.Parameters.AddWithValue("token", TokenHashing.ComputeHash(refresh));
             upsertCmd.Parameters.AddWithValue("exp", DateTime.UtcNow.AddSeconds(_tokenService.RefreshTokenExpiryInSeconds));
+            upsertCmd.Parameters.AddWithValue("sid", sessionKey);
             await upsertCmd.ExecuteNonQueryAsync();
         }
 
-        // Return both access and refresh tokens to the client
-        return Ok(new TokenResponse(access, _tokenService.AccessTokenExpiryInSeconds, refresh, _tokenService.RefreshTokenExpiryInSeconds));
+        // Return both tokens and the session key to the client
+        return Ok(new TokenResponse(access, _tokenService.AccessTokenExpiryInSeconds, refresh, _tokenService.RefreshTokenExpiryInSeconds, sessionKey));
     }
 
     [HttpPost("refresh")]
@@ -72,6 +83,9 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Refresh([FromBody] RefreshRequest request)
     {
         Console.WriteLine($"Token refresh attempt (client-sent refresh token)");
+
+        if (string.IsNullOrWhiteSpace(request.SessionKey))
+            return Unauthorized();
 
         // Validate the provided refresh token fully
         var refreshPrincipal = _tokenService.ValidateToken(request.RefreshToken, validateLifetime: true);
@@ -91,22 +105,23 @@ public class AuthController : ControllerBase
         await using var conn = new NpgsqlConnection(connString);
         await conn.OpenAsync();
 
-        // Load refresh token row by token hash
-        const string selectSql = "SELECT user_id, expires_at FROM refresh_tokens WHERE token = @token";
+        // Load refresh token row by token hash and session key binding
+        const string selectSql = "SELECT user_id, expires_at FROM refresh_tokens WHERE token = @token AND session_key = @sid";
         await using var selectCmd = new NpgsqlCommand(selectSql, conn);
         var providedHash = TokenHashing.ComputeHash(request.RefreshToken);
         selectCmd.Parameters.AddWithValue("token", providedHash);
+        selectCmd.Parameters.AddWithValue("sid", request.SessionKey);
         await using var reader = await selectCmd.ExecuteReaderAsync();
         if (!await reader.ReadAsync())
             return Unauthorized();
 
         var storedUserId = reader.GetGuid(0);
         var expiresAt = reader.GetDateTime(1);
+        await reader.DisposeAsync();
 
         // Cross-check: token's subject must match row's user_id
         if (!Guid.TryParse(userIdStr, out var userId) || userId != storedUserId)
         {
-            await reader.DisposeAsync();
             const string revokeSuspiciousSql = "DELETE FROM refresh_tokens WHERE token = @token";
             await using var revokeSuspiciousCmd = new NpgsqlCommand(revokeSuspiciousSql, conn);
             revokeSuspiciousCmd.Parameters.AddWithValue("token", providedHash);
@@ -121,21 +136,20 @@ public class AuthController : ControllerBase
         var newAccess = _tokenService.GenerateAccessToken(userIdStr, email);
         var newRefresh = _tokenService.GenerateRefreshToken(userIdStr, email);
 
-        await reader.DisposeAsync();
-
         const string updateSql = @"
             UPDATE refresh_tokens
             SET token = @newtoken, expires_at = @exp, rotated_at = now()
-            WHERE user_id = @uid AND token = @oldtoken";
+            WHERE user_id = @uid AND token = @oldtoken AND session_key = @sid";
         await using var updateCmd = new NpgsqlCommand(updateSql, conn);
         updateCmd.Parameters.AddWithValue("uid", userId);
         updateCmd.Parameters.AddWithValue("oldtoken", providedHash);
         updateCmd.Parameters.AddWithValue("newtoken", TokenHashing.ComputeHash(newRefresh));
         updateCmd.Parameters.AddWithValue("exp", DateTime.UtcNow.AddSeconds(_tokenService.RefreshTokenExpiryInSeconds));
+        updateCmd.Parameters.AddWithValue("sid", request.SessionKey);
         await updateCmd.ExecuteNonQueryAsync();
 
-        // Return new access and refresh tokens
-        return Ok(new TokenResponse(newAccess, _tokenService.AccessTokenExpiryInSeconds, newRefresh, _tokenService.RefreshTokenExpiryInSeconds));
+        // Return new access and refresh tokens (same session key)
+        return Ok(new TokenResponse(newAccess, _tokenService.AccessTokenExpiryInSeconds, newRefresh, _tokenService.RefreshTokenExpiryInSeconds, request.SessionKey));
     }
 
     [HttpPost("introspect")]

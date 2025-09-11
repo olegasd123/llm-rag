@@ -3,18 +3,19 @@ using Swashbuckle.AspNetCore.Annotations;
 namespace RagAuthService.Models;
 
 [SwaggerSchema(Description = "Login request containing user credentials.")]
-public record LoginRequest(string Email, string Password);
+public record LoginRequest(string Email, string Password, string? SessionKey = null);
 
 [SwaggerSchema(Description = "Access and refresh tokens returned after successful authentication or refresh.")]
 public record TokenResponse(
     string AccessToken,
     int AccessExpiresIn,
     string RefreshToken,
-    int RefreshExpiresIn
+    int RefreshExpiresIn,
+    string SessionKey
 );
 
 [SwaggerSchema(Description = "Request to obtain a new access token using a refresh token provided by the client.")]
-public record RefreshRequest(string RefreshToken);
+public record RefreshRequest(string RefreshToken, string SessionKey);
 
 [SwaggerSchema(Description = "Request to verify the validity of a token.")]
 public record IntrospectRequest(string Token);

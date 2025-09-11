@@ -7,6 +7,7 @@ interface TokenResponse {
   accessExpiresIn: number;
   refreshToken: string;
   refreshExpiresIn: number;
+  sessionKey: string;
 }
 
 export interface StartResult {
@@ -26,12 +27,13 @@ export interface PollResult {
 async function refreshTokens(): Promise<boolean> {
   const jar = cookies();
   const refresh = jar.get('refresh_token')?.value;
-  if (!refresh) return false;
+  const sessionKey = jar.get('session_key')?.value;
+  if (!refresh || !sessionKey) return false;
 
   const res = await fetch(`${process.env.AUTH_SERVICE_URL}/auth/refresh`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ RefreshToken: refresh }),
+    body: JSON.stringify({ RefreshToken: refresh, SessionKey: sessionKey }),
     cache: 'no-store',
   });
   if (!res.ok) {
@@ -39,7 +41,7 @@ async function refreshTokens(): Promise<boolean> {
     jar.set('refresh_token', '', { path: '/', maxAge: 0 });
     return false;
   }
-  const { accessToken, accessExpiresIn, refreshToken, refreshExpiresIn } = (await res.json()) as TokenResponse;
+  const { accessToken, accessExpiresIn, refreshToken, refreshExpiresIn, sessionKey: newSessionKey } = (await res.json()) as TokenResponse;
 
   jar.set('access_token', accessToken, {
     httpOnly: true,
@@ -49,6 +51,13 @@ async function refreshTokens(): Promise<boolean> {
     maxAge: accessExpiresIn,
   });
   jar.set('refresh_token', refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: refreshExpiresIn,
+  });
+  jar.set('session_key', newSessionKey, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',

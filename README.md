@@ -66,16 +66,16 @@ docker compose exec main-db ping data-cache
         created_at TIMESTAMPTZ DEFAULT NOW()
     );
 
-    -- Server-side refresh token storage (multiple per user, token stores SHA-256 hash)
+    -- Server-side refresh token storage bound to a per-device/session secret
     CREATE TABLE IF NOT EXISTS refresh_tokens (
         user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         token      TEXT NOT NULL,  -- SHA-256 hex
+        session_key TEXT NOT NULL, -- per-session random secret, not embedded in the token
         expires_at TIMESTAMPTZ NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         rotated_at TIMESTAMPTZ,
         PRIMARY KEY (user_id, token)
     );
-   ```
 
    ```psql
    \dt public.users
@@ -101,9 +101,10 @@ docker compose exec main-db ping data-cache
 
 ## Auth Flow Notes
 
-- Login returns only an access token and `expiresIn`. The refresh token is stored only on the server in `refresh_tokens`.
-- Refresh: POST `AuthService` `/auth/refresh` with body `{ "token": "<access token>" }` (access token can be expired). Service validates the server-stored refresh token, rotates it, and returns a new access token.
-- Logout: POST `AuthService` `/auth/logout` with body `{ "token": "<access token>" }`. Service deletes the user’s entry in `refresh_tokens`.
+- Login returns access/refresh tokens and a per-session `sessionKey`. Client stores both tokens and the `sessionKey` in httpOnly cookies. The server stores only the refresh token hash and the `session_key`.
+- Refresh: POST `AuthService` `/auth/refresh` with body `{ "refreshToken": "<refresh>", "sessionKey": "<sessionKey>" }`. Service validates the token, checks it matches the bound `session_key`, rotates the refresh token for that session, and returns new tokens (same `sessionKey`). This prevents a stolen refresh token alone from being used.
+- Logout: POST `AuthService` `/auth/logout` with body `{ "token": "<access token>" }`. Service deletes all the user’s refresh tokens.
+- Logout current device: POST `AuthService` `/auth/logout-device` with body `{ "refreshToken": "<refresh>" }`. Deletes only that session.
 
 ## Running Dev
 
