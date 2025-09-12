@@ -8,7 +8,6 @@ interface TokenResponse {
   accessExpiresIn: number;
   refreshToken: string;
   refreshExpiresIn: number;
-  sessionKey: string;
 }
 
 export interface AuthState {
@@ -18,15 +17,13 @@ export interface AuthState {
 export async function loginAction(_: AuthState, formData: FormData): Promise<AuthState> {
   const email = String(formData.get('email') || '');
   const password = String(formData.get('password') || '');
-  const jar = cookies();
-  const sessionKey = jar.get('session_key')?.value;
   if (!email || !password) return { error: 'Email and password are required' };
   let data: TokenResponse | null = null;
   try {
     const res = await fetch(`${process.env.AUTH_SERVICE_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ Email: email, Password: password, SessionKey: sessionKey }),
+      body: JSON.stringify({ Email: email, Password: password }),
       cache: 'no-store',
     });
     if (!res.ok) return { error: 'Invalid credentials' };
@@ -36,8 +33,9 @@ export async function loginAction(_: AuthState, formData: FormData): Promise<Aut
   }
 
   if (!data) return { error: 'Unexpected auth response' };
-  const { accessToken, accessExpiresIn, refreshToken, refreshExpiresIn, sessionKey: newSessionKey } = data;
+  const { accessToken, accessExpiresIn, refreshToken, refreshExpiresIn } = data;
   
+  const jar = cookies();
   jar.set('access_token', accessToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -52,14 +50,6 @@ export async function loginAction(_: AuthState, formData: FormData): Promise<Aut
     path: '/',
     maxAge: refreshExpiresIn,
   });
-  jar.set('session_key', newSessionKey, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: refreshExpiresIn,
-  });
-
   redirect('/chat');
 }
 
@@ -67,7 +57,7 @@ export async function logoutAction(): Promise<void> {
   const jar = cookies();
   const token = jar.get('refresh_token')?.value;
   if (token) {
-    await fetch(`${process.env.AUTH_SERVICE_URL}/auth/logout-device`, {
+    await fetch(`${process.env.AUTH_SERVICE_URL}/auth/logout`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken: token }),
@@ -76,6 +66,5 @@ export async function logoutAction(): Promise<void> {
   }
   jar.set('access_token', '', { path: '/', maxAge: 0 });
   jar.set('refresh_token', '', { path: '/', maxAge: 0 });
-  jar.set('session_key', '', { path: '/', maxAge: 0 });
   redirect('/login');
 }

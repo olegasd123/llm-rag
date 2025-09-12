@@ -35,7 +35,7 @@ docker compose exec main-db ping data-cache
      ```bash
      openssl rand -base64 32
      ```
-2. Start the database and create the `users` and `refresh_tokens` tables:
+2. Start the database and create the `users` and `auth_refresh_tokens` tables:
 
    ```bash
    docker compose up -d main-db
@@ -66,15 +66,13 @@ docker compose exec main-db ping data-cache
         created_at TIMESTAMPTZ DEFAULT NOW()
     );
 
-    -- Server-side refresh token storage bound to a per-device/session secret
-    CREATE TABLE IF NOT EXISTS refresh_tokens (
-        user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    -- Server-side refresh token storage: one token per user
+    CREATE TABLE IF NOT EXISTS auth_refresh_tokens (
+        user_id    UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
         token      TEXT NOT NULL,  -- SHA-256 hex
-        session_key TEXT NOT NULL, -- per-session random secret, not embedded in the token
         expires_at TIMESTAMPTZ NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        rotated_at TIMESTAMPTZ,
-        PRIMARY KEY (user_id, token)
+        rotated_at TIMESTAMPTZ
     );
 
    ```psql
@@ -101,10 +99,9 @@ docker compose exec main-db ping data-cache
 
 ## Auth Flow Notes
 
-- Login returns access/refresh tokens and a per-session `sessionKey`. Client stores both tokens and the `sessionKey` in httpOnly cookies. The server stores only the refresh token hash and the `session_key`.
-- Refresh: POST `AuthService` `/auth/refresh` with body `{ "refreshToken": "<refresh>", "sessionKey": "<sessionKey>" }`. Service validates the token, checks it matches the bound `session_key`, rotates the refresh token for that session, and returns new tokens (same `sessionKey`). This prevents a stolen refresh token alone from being used.
-- Logout: POST `AuthService` `/auth/logout` with body `{ "token": "<access token>" }`. Service deletes all the user’s refresh tokens.
-- Logout current device: POST `AuthService` `/auth/logout-device` with body `{ "refreshToken": "<refresh>" }`. Deletes only that session.
+- Login returns access and refresh tokens. Server stores only the refresh token hash per user (one token per user).
+- Refresh: POST `AuthService` `/auth/refresh` with body `{ "refreshToken": "<refresh>" }`. Service validates the token, checks it matches the stored hash for the user, rotates the refresh token, and returns new tokens.
+- Logout: POST `AuthService` `/auth/logout` with body `{ "token": "<access token>" }`. Service deletes the user’s stored refresh token.
 
 ## Running Dev
 
