@@ -60,13 +60,15 @@ export default function ChatPage() {
   // Handle pollState updates and periodic retry
   useEffect(() => {
     if (!pollId) return;
-    if (pollState.unauthorized) {
+    // Ignore stale poll results from previous task ids
+    if (pollState.id && pollState.id !== pollId) {
+      // Keep polling for the current pollId
+    } else if (pollState.unauthorized) {
       router.push('/login');
       setIsSending(false);
       setPollId(null);
       return;
-    }
-    if (pollState.ok && pollState.response) {
+    } else if (pollState.ok && pollState.response) {
       setMessages(m => [...m, { role: 'assistant', content: String(pollState.response) }]);
       setIsSending(false);
       setPollId(null);

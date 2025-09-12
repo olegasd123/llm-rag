@@ -20,6 +20,8 @@ export interface StartResult {
 export interface PollResult {
   ok: boolean;
   unauthorized?: boolean;
+  // Echoes the task id that was polled to disambiguate concurrent polls
+  id?: string;
   response?: string;
   error?: string;
 }
@@ -126,14 +128,14 @@ export async function pollPromptAction(
     let res = await forward(access);
     if (res.status === 401) {
       const refreshed = await refreshTokens();
-      if (!refreshed) return { ok: false, unauthorized: true };
+      if (!refreshed) return { ok: false, unauthorized: true, id };
       const token = cookies().get('access_token')?.value;
       res = await forward(token);
     }
-    if (!res.ok) return { ok: false, error: 'Failed to fetch' };
+    if (!res.ok) return { ok: false, error: 'Failed to fetch', id };
     const data = await res.json();
-    return { ok: true, response: data.response };
+    return { ok: true, id, response: data.response };
   } catch {
-    return { ok: false, error: 'Service unavailable' };
+    return { ok: false, error: 'Service unavailable', id };
   }
 }

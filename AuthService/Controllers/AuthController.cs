@@ -55,7 +55,7 @@ public class AuthController : ControllerBase
         }
         await reader.DisposeAsync();
 
-        // Upsert refresh token record bound to user ID and session key
+        // If the current refresh token was expired we replace it with a new one (keeping session key same)
         const string insertSql = @"
             INSERT INTO refresh_tokens (user_id, token, expires_at, session_key)
             VALUES (@uid, @token, @exp, @sid)
